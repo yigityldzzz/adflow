@@ -1,0 +1,248 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ConversionType {
+  PURCHASE
+  LEAD
+  SIGNUP
+  ADD_TO_CART
+  CUSTOM
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String?
+  plan          Plan           @default(FREE)
+  role          Role           @default(USER)
+  suspended     Boolean        @default(false)
+  notes         String?
+  apiKey        String?        @unique
+  trialPlan     Plan?
+  trialEndsAt   DateTime?
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
+  campaigns     Campaign[]
+  links         TrackingLink[]
+  conversions   Conversion[]
+  alerts          Alert[]
+  trafficSources  TrafficSource[]
+  offers          Offer[]
+  landers         Lander[]
+  flows           Flow[]
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  metric      String
+  condition   String
+  threshold   Float
+  enabled     Boolean   @default(true)
+  triggered   Boolean   @default(false)
+  webhookUrl  String?
+  lastChecked DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  source      String?
+  status      CampaignStatus @default(ACTIVE)
+  budget      Float?
+  cost        Float?
+  createdAt   DateTime       @default(now())
+  trafficSourceId String?
+  flowId          String?
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trafficSource   TrafficSource? @relation(fields: [trafficSourceId], references: [id])
+  flow            Flow?          @relation(fields: [flowId], references: [id])
+  links           TrackingLink[]
+  clicks          Click[]
+}
+
+model TrackingLink {
+  id              String       @id @default(cuid())
+  userId          String
+  campaignId      String?
+  slug            String       @unique
+  name            String
+  destinationUrl  String
+  conversionToken String       @unique @default(cuid())
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign        Campaign?    @relation(fields: [campaignId], references: [id])
+  clicks          Click[]
+  conversions     Conversion[]
+}
+
+model Click {
+  id             String   @id @default(cuid())
+  linkId         String
+  campaignId     String?
+  userId         String
+  visitorId      String
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmContent     String?
+  utmTerm        String?
+  fbclid         String?
+  gclid          String?
+  ttclid         String?
+  ip             String?
+  country        String?
+  countryCode    String?
+  city           String?
+  region         String?
+  isp            String?
+  browser        String?
+  browserVersion String?
+  os             String?
+  device         String?
+  language       String?
+  referrer       String?
+  userAgent      String?
+  isBot          Boolean  @default(false)
+  isSuspicious   Boolean  @default(false)
+  isUnique       Boolean  @default(true)
+  timestamp      DateTime @default(now())
+  link           TrackingLink  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id])
+  conversions    Conversion[]
+
+  @@index([linkId])
+  @@index([campaignId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model Conversion {
+  id        String         @id @default(cuid())
+  clickId   String?
+  linkId    String
+  userId    String
+  type      ConversionType @default(PURCHASE)
+  value     Float          @default(0)
+  currency  String         @default("USD")
+  txid      String?
+  metadata  Json?
+  timestamp DateTime       @default(now())
+  click     Click?         @relation(fields: [clickId], references: [id])
+  link      TrackingLink   @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId, txid])
+  @@index([linkId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model TrafficSource {
+  id          String     @id @default(cuid())
+  userId      String
+  name        String
+  platform    String     @default("other")
+  postbackUrl String?
+  costModel   String     @default("CPC")
+  tags        String[]   @default([])
+  status      String     @default("active")
+  pixelId     String?
+  accessToken String?
+  fbEventName String?
+  createdAt   DateTime   @default(now())
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns   Campaign[]
+
+  @@index([userId])
+}
+
+model Offer {
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  url              String
+  countryLabel     String   @default("Global")
+  affiliateNetwork String?
+  tags             String[] @default([])
+  payout           String   @default("auto")
+  payoutValue      Float?
+  currency         String   @default("USD")
+  trackingMethod   String   @default("S2S")
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Lander {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  url          String
+  countryLabel String   @default("Global")
+  tags         String[] @default([])
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Flow {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  status      String   @default("active")
+  trafficSourceId String?
+  landerId    String?
+  offerId     String?
+  rules       Json?
+  paths       Json?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns   Campaign[]
+
+  @@index([userId])
+}
