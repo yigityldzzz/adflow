@@ -6,15 +6,27 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 const router = Router();
 router.use(authenticate);
 
+const conditionCheckSchema = z.object({
+  condition: z.enum(['country', 'device', 'os', 'language']),
+  operator: z.enum(['is', 'is_not', 'contains']),
+  value: z.string(),
+});
+
 const ruleSchema = z.object({
-  condition: z.enum(['country', 'device', 'os', 'language', 'always']),
+  // New format — multiple conditions combined with AND logic.
+  conditions: z.array(conditionCheckSchema).optional(),
+  // Legacy format — single condition, kept for backward compatibility.
+  condition: z.enum(['country', 'device', 'os', 'language', 'always']).optional(),
   operator: z.enum(['is', 'is_not', 'contains']).optional(),
   value: z.string().optional(),
   weight: z.number().min(1).max(100).optional(),
   offerId: z.string().optional(),
   landerId: z.string().optional(),
   redirectUrl: z.string().optional(),
-});
+}).refine(
+  (r) => (r.conditions && r.conditions.length > 0) || r.condition,
+  { message: 'Either conditions[] or a legacy condition field is required' }
+);
 
 const pathSchema = z.object({
   weight: z.number().min(1).max(100),
