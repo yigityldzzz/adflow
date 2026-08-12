@@ -27,6 +27,7 @@ import {
   Layout,
   GitBranch,
   MousePointerClick,
+  Users,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearAuth, getToken, isImpersonating, stopImpersonation } from '@/lib/auth';
@@ -75,6 +76,7 @@ const NAV_ITEMS = [
   { href: '/reports',     icon: FileText,         label: 'Reports' },
   { href: '/alerts',       icon: Bell,             label: 'Alerts' },
   { href: '/utm-builder',  icon: Wrench,           label: 'UTM Builder' },
+  { href: '/team',         icon: Users,            label: 'Team' },
   { href: '/settings',     icon: Settings,         label: 'Settings' },
 ];
 
