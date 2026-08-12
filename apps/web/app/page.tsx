@@ -194,6 +194,7 @@ const PLANS = [
 
 const SHOWCASE_TABS = [
   { id: 'analytics', label: 'Analytics' },
+  { id: 'flows', label: 'Flow Builder' },
   { id: 'links', label: 'Link Detail' },
   { id: 'utm', label: 'UTM Builder' },
   { id: 'alerts', label: 'Smart Alerts' },
@@ -535,7 +536,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
                 <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
-                  adflow.digitaladexpert.de/{showcaseTab === 'analytics' ? 'analytics' : showcaseTab === 'links' ? 'links/abc12345' : showcaseTab === 'utm' ? 'utm-builder' : 'alerts'}
+                  adflow.digitaladexpert.de/{showcaseTab === 'analytics' ? 'analytics' : showcaseTab === 'flows' ? 'flows' : showcaseTab === 'links' ? 'links/abc12345' : showcaseTab === 'utm' ? 'utm-builder' : 'alerts'}
                 </div>
               </div>
 
@@ -595,6 +596,53 @@ export default function LandingPage() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Flow Builder tab */}
+                {showcaseTab === 'flows' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#10b981]/10 text-[#10b981]">Active</span>
+                        <span className="text-sm font-semibold text-[#0f172a]">Meta → Geo Split → Offer</span>
+                      </div>
+                      <span className="text-[10px] text-[#94a3b8]">A/B Split Test</span>
+                    </div>
+
+                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-5">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="px-3 py-2 rounded-lg bg-[#6366f1]/10 border border-[#6366f1]/20 text-center">
+                          <p className="text-[9px] text-[#94a3b8] mb-0.5">SOURCE</p>
+                          <p className="text-xs font-semibold text-[#0f172a]">Meta Ads</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#cbd5e1]" />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
+                            <span className="text-[10px] font-bold text-[#6366f1] w-8">70%</span>
+                            <span className="text-xs text-[#64748b]">Lander A → Offer 1</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
+                            <span className="text-[10px] font-bold text-[#8b5cf6] w-8">30%</span>
+                            <span className="text-xs text-[#64748b]">Lander B → Offer 2</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-[#e2e8f0]">
+                        <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">Conditional Rules</p>
+                        <div className="flex items-center gap-2 text-xs text-[#64748b] bg-[#f8fafc] rounded-lg px-3 py-2">
+                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">IF</span>
+                          country = US
+                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">THEN</span>
+                          route to Offer 1
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[#94a3b8] text-center">
+                      Route traffic by country, device, OS, or language — or split-test paths with weighted distribution.
+                    </p>
                   </div>
                 )}
 
