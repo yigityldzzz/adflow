@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 function nanoid(size = 21): string { return randomBytes(Math.ceil(size * 3 / 4)).toString('base64url').slice(0, size); }
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { limitFor } from '../config/planLimits';
 
 const router = Router();
 router.use(authenticate);
@@ -60,6 +61,18 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
   const { name, destinationUrl, campaignId } = parse.data;
   const userId = req.user!.id;
+
+  const limits = limitFor(req.user!.plan);
+  if (limits.maxLinks !== null) {
+    const linkCount = await prisma.trackingLink.count({ where: { userId } });
+    if (linkCount >= limits.maxLinks) {
+      res.status(403).json({
+        error: `Your plan is limited to ${limits.maxLinks} tracking link${limits.maxLinks === 1 ? '' : 's'}. Upgrade to Pro for unlimited links.`,
+        code: 'PLAN_LIMIT_REACHED',
+      });
+      return;
+    }
+  }
 
   // Verify campaign belongs to user if provided
   if (campaignId) {
