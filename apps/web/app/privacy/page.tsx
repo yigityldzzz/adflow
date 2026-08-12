@@ -40,8 +40,9 @@ export default function PrivacyPolicyPage() {
               <a href="mailto:info@digitaladexpert.de" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>.
             </p>
             <p className="mt-2 text-sm text-[#94a3b8]">
-              Full registered business address and company registration details are provided on request and will be
-              published here once finalized.
+              Digital Ad Expert is operated by Yiğit Yıldız, a sole proprietor (Person Fizik) registered with the
+              Albanian National Business Center (Qendra Kombëtare e Biznesit), business registration number (NUIS)
+              M61404014A. Registered address: Rruga Astrit Losha, Pallati Marituda, Tiranë, Albania.
             </p>
           </section>
 
