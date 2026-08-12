@@ -4,16 +4,17 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { CampaignStatus } from '@prisma/client';
 import { limitFor } from '../config/planLimits';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 router.use(authenticate);
 
 // GET /api/campaigns
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const campaigns = await prisma.campaign.findMany({
-    where: { userId },
+    where: { userId: { in: teamIds } },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { clicks: { where: { isBot: false } } } },
@@ -79,7 +80,8 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.id;
   const limits = limitFor(req.user!.plan);
   if (limits.maxCampaigns !== null) {
-    const campaignCount = await prisma.campaign.count({ where: { userId } });
+    const teamIds = await getTeamUserIds(userId);
+    const campaignCount = await prisma.campaign.count({ where: { userId: { in: teamIds } } });
     if (campaignCount >= limits.maxCampaigns) {
       res.status(403).json({
         error: `Your plan is limited to ${limits.maxCampaigns} campaign${limits.maxCampaigns === 1 ? '' : 's'}. Upgrade to Pro for unlimited campaigns.`,
@@ -102,10 +104,10 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // GET /api/campaigns/:id
 router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id, userId },
+    where: { id, userId: { in: teamIds } },
     include: {
       links: {
         include: {
@@ -170,7 +172,7 @@ const updateCampaignSchema = z.object({
 
 router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const parse = updateCampaignSchema.safeParse(req.body);
   if (!parse.success) {
@@ -178,7 +180,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
-  const existing = await prisma.campaign.findFirst({ where: { id, userId } });
+  const existing = await prisma.campaign.findFirst({ where: { id, userId: { in: teamIds } } });
   if (!existing) {
     res.status(404).json({ error: 'Campaign not found' });
     return;
@@ -195,9 +197,9 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 // DELETE /api/campaigns/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
-  const existing = await prisma.campaign.findFirst({ where: { id, userId } });
+  const existing = await prisma.campaign.findFirst({ where: { id, userId: { in: teamIds } } });
   if (!existing) {
     res.status(404).json({ error: 'Campaign not found' });
     return;
