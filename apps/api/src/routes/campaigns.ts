@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { CampaignStatus } from '@prisma/client';
+import { limitFor } from '../config/planLimits';
 
 const router = Router();
 router.use(authenticate);
@@ -75,10 +76,23 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
+  const userId = req.user!.id;
+  const limits = limitFor(req.user!.plan);
+  if (limits.maxCampaigns !== null) {
+    const campaignCount = await prisma.campaign.count({ where: { userId } });
+    if (campaignCount >= limits.maxCampaigns) {
+      res.status(403).json({
+        error: `Your plan is limited to ${limits.maxCampaigns} campaign${limits.maxCampaigns === 1 ? '' : 's'}. Upgrade to Pro for unlimited campaigns.`,
+        code: 'PLAN_LIMIT_REACHED',
+      });
+      return;
+    }
+  }
+
   const campaign = await prisma.campaign.create({
     data: {
       ...parse.data,
-      userId: req.user!.id,
+      userId,
     },
   });
 
