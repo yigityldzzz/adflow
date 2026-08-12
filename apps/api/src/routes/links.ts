@@ -5,16 +5,17 @@ function nanoid(size = 21): string { return randomBytes(Math.ceil(size * 3 / 4))
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { limitFor } from '../config/planLimits';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 router.use(authenticate);
 
 // GET /api/links
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const links = await prisma.trackingLink.findMany({
-    where: { userId },
+    where: { userId: { in: teamIds } },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { clicks: { where: { isBot: false } }, conversions: true } },
@@ -62,9 +63,10 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   const { name, destinationUrl, campaignId } = parse.data;
   const userId = req.user!.id;
 
+  const teamIds = await getTeamUserIds(userId);
   const limits = limitFor(req.user!.plan);
   if (limits.maxLinks !== null) {
-    const linkCount = await prisma.trackingLink.count({ where: { userId } });
+    const linkCount = await prisma.trackingLink.count({ where: { userId: { in: teamIds } } });
     if (linkCount >= limits.maxLinks) {
       res.status(403).json({
         error: `Your plan is limited to ${limits.maxLinks} tracking link${limits.maxLinks === 1 ? '' : 's'}. Upgrade to Pro for unlimited links.`,
@@ -74,9 +76,9 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
     }
   }
 
-  // Verify campaign belongs to user if provided
+  // Verify campaign belongs to the user's team if provided
   if (campaignId) {
-    const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, userId } });
+    const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, userId: { in: teamIds } } });
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
       return;
@@ -119,10 +121,10 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // GET /api/links/:id
 router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const link = await prisma.trackingLink.findFirst({
-    where: { id, userId },
+    where: { id, userId: { in: teamIds } },
     include: {
       _count: { select: { clicks: { where: { isBot: false } }, conversions: true } },
       conversions: { select: { value: true, type: true, timestamp: true } },
@@ -168,7 +170,7 @@ const updateLinkSchema = z.object({
 
 router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
   const parse = updateLinkSchema.safeParse(req.body);
   if (!parse.success) {
@@ -176,7 +178,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
-  const existing = await prisma.trackingLink.findFirst({ where: { id, userId } });
+  const existing = await prisma.trackingLink.findFirst({ where: { id, userId: { in: teamIds } } });
   if (!existing) {
     res.status(404).json({ error: 'Link not found' });
     return;
@@ -184,7 +186,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 
   if (parse.data.campaignId) {
     const campaign = await prisma.campaign.findFirst({
-      where: { id: parse.data.campaignId, userId },
+      where: { id: parse.data.campaignId, userId: { in: teamIds } },
     });
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
@@ -210,11 +212,11 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 // GET /api/links/:id/clicks
 router.get('/:id/clicks', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10), 200);
   const offset = parseInt(String(req.query.offset ?? '0'), 10);
 
-  const link = await prisma.trackingLink.findFirst({ where: { id, userId } });
+  const link = await prisma.trackingLink.findFirst({ where: { id, userId: { in: teamIds } } });
   if (!link) { res.status(404).json({ error: 'Link not found' }); return; }
 
   const filterBot = req.query.filter === 'bot' ? true : req.query.filter === 'human' ? false : undefined;
@@ -247,9 +249,9 @@ router.get('/:id/clicks', async (req: AuthRequest, res: Response): Promise<void>
 // DELETE /api/links/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
 
-  const existing = await prisma.trackingLink.findFirst({ where: { id, userId } });
+  const existing = await prisma.trackingLink.findFirst({ where: { id, userId: { in: teamIds } } });
   if (!existing) {
     res.status(404).json({ error: 'Link not found' });
     return;
