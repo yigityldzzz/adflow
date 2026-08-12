@@ -63,6 +63,7 @@ model User {
   landers         Lander[]
   flows           Flow[]
   notifications   Notification[]
+  domains         Domain[]
   ownedOrganizations   Organization[]       @relation("OrgOwner")
   organizationMembership OrganizationMember?
 }
@@ -176,6 +177,7 @@ model TrackingLink {
   id              String       @id @default(cuid())
   userId          String
   campaignId      String?
+  domainId        String?
   slug            String       @unique
   name            String
   destinationUrl  String
@@ -183,8 +185,30 @@ model TrackingLink {
   createdAt       DateTime     @default(now())
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaign        Campaign?    @relation(fields: [campaignId], references: [id])
+  domain          Domain?      @relation(fields: [domainId], references: [id], onDelete: SetNull)
   clicks          Click[]
   conversions     Conversion[]
+}
+
+// A custom tracking domain a user has added to replace the default
+// adflow.digitaladexpert.de in their tracking/postback/pixel URLs.
+// `verified` is set once we confirm a DNS TXT record proving ownership.
+// Actually routing traffic for a verified domain still requires a manual,
+// safety-gated nginx step (see scripts/add-custom-domain.sh) — this table
+// only tracks ownership/verification state, not live routing status.
+model Domain {
+  id                String    @id @default(cuid())
+  userId            String
+  domain            String    @unique
+  verified          Boolean   @default(false)
+  verificationToken String    @default(cuid())
+  live              Boolean   @default(false) // flipped manually once nginx routing is confirmed live
+  createdAt         DateTime  @default(now())
+  verifiedAt        DateTime?
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links             TrackingLink[]
+
+  @@index([userId])
 }
 
 model Click {
