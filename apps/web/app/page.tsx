@@ -353,7 +353,8 @@ export default function LandingPage() {
               </div>
 
               {/* Dashboard mockup */}
-              <div className="p-6 bg-[#f8fafc]">
+              <div className="p-6 bg-[#f8fafc] overflow-x-auto">
+                <div className="min-w-[640px]">
                 {/* KPI row */}
                 <div className="grid grid-cols-5 gap-3 mb-5">
                   {[
@@ -406,6 +407,7 @@ export default function LandingPage() {
                       ))}
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -540,7 +542,8 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="p-5 bg-[#f8fafc] min-h-[340px]">
+              <div className="p-5 bg-[#f8fafc] min-h-[340px] overflow-x-auto">
+                <div className="min-w-[600px]">
 
                 {/* Analytics tab */}
                 {showcaseTab === 'analytics' && (
@@ -795,6 +798,7 @@ export default function LandingPage() {
                   </div>
                 )}
 
+                </div>
               </div>
             </div>
           </div>
