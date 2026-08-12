@@ -21,9 +21,11 @@ import flowsRouter from './routes/flows';
 import notificationsRouter from './routes/notifications';
 import organizationsRouter from './routes/organizations';
 import domainsRouter from './routes/domains';
+import adAccountsRouter from './routes/adAccounts';
 import redirectRouter from './tracking/redirect';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
+import { syncAllMetaAdAccounts } from './services/adAccountScheduler';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '6000', 10);
@@ -104,6 +106,7 @@ app.use('/api/flows', generalLimiter, flowsRouter);
 app.use('/api/notifications', generalLimiter, notificationsRouter);
 app.use('/api/organizations', generalLimiter, organizationsRouter);
 app.use('/api/domains', generalLimiter, domainsRouter);
+app.use('/api/ad-accounts', generalLimiter, adAccountsRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -127,5 +130,14 @@ setTimeout(() => {
 setInterval(() => {
   enforceDataRetention().catch((e) => console.error('[Retention]', e));
 }, 24 * 60 * 60 * 1000);
+
+// Sync connected Meta ad account spend into linked campaigns every 6 hours.
+// No-op if no accounts are connected yet.
+setTimeout(() => {
+  syncAllMetaAdAccounts().catch((e) => console.error('[AdAccountSync]', e));
+}, 3 * 60 * 1000);
+setInterval(() => {
+  syncAllMetaAdAccounts().catch((e) => console.error('[AdAccountSync]', e));
+}, 6 * 60 * 60 * 1000);
 
 export default app;
