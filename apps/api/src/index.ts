@@ -19,6 +19,7 @@ import offersRouter from './routes/offers';
 import landersRouter from './routes/landers';
 import flowsRouter from './routes/flows';
 import notificationsRouter from './routes/notifications';
+import organizationsRouter from './routes/organizations';
 import redirectRouter from './tracking/redirect';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
@@ -100,6 +101,7 @@ app.use('/api/offers', generalLimiter, offersRouter);
 app.use('/api/landers', generalLimiter, landersRouter);
 app.use('/api/flows', generalLimiter, flowsRouter);
 app.use('/api/notifications', generalLimiter, notificationsRouter);
+app.use('/api/organizations', generalLimiter, organizationsRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
