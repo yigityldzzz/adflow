@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { prisma } from '../config/database';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 
@@ -27,8 +28,9 @@ router.use(authenticate);
 
 router.get('/', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const sources = await prisma.trafficSource.findMany({
-      where: { userId: (req as AuthRequest).user!.id },
+      where: { userId: { in: teamIds } },
       orderBy: { createdAt: 'desc' },
       include: { _count: { select: { campaigns: true } } },
     });
@@ -45,8 +47,9 @@ router.get('/', async (req, res: Response) => {
 
 router.get('/:id', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const s = await prisma.trafficSource.findFirst({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
     });
     if (!s) return res.status(404).json({ error: 'Not found' });
     res.json({ ...s, accessToken: s.accessToken ? '••••••' + s.accessToken.slice(-6) : null });
@@ -89,8 +92,9 @@ router.patch('/:id', async (req, res: Response) => {
     if (data.pixelId === '') data.pixelId = null;
     if (data.eventName === '') data.eventName = null;
 
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const result = await prisma.trafficSource.updateMany({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
       data,
     });
     if (result.count === 0) return res.status(404).json({ error: 'Not found' });
@@ -103,8 +107,9 @@ router.patch('/:id', async (req, res: Response) => {
 
 router.delete('/:id', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     await prisma.trafficSource.deleteMany({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
     });
     res.json({ ok: true });
   } catch {
