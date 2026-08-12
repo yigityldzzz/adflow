@@ -443,6 +443,12 @@ export default function TrafficSourcesPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-[#94a3b8] mt-1.5 leading-relaxed">
+                  Bir dönüşüm kaydedildiğinde AdFlow bu URL&apos;e otomatik bir GET isteği atar, yukarıdaki token&apos;ları gerçek değerlerle
+                  değiştirerek (ör. <code className="font-mono text-[#6366f1]">{'{clickid}'}</code> → ağın orijinal click id&apos;si,{' '}
+                  <code className="font-mono text-[#6366f1]">{'{cost}'}</code> → dönüşüm değeri). Domain/path kısmını kendi ağınızın
+                  postback formatına göre siz düzenlemelisiniz — token isimleri dışındaki kısım ağdan ağa değişir.
+                </p>
               </div>
 
               {/* Tags */}
