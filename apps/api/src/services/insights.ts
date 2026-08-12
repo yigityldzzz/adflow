@@ -9,14 +9,14 @@ export interface Insight {
   metric: string;
 }
 
-export async function generateInsights(userId: string): Promise<Insight[]> {
+export async function generateInsights(teamIds: string[]): Promise<Insight[]> {
   const insights: Insight[] = [];
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   const campaigns = await prisma.campaign.findMany({
-    where: { userId, status: 'ACTIVE' },
+    where: { userId: { in: teamIds }, status: 'ACTIVE' },
     include: {
       clicks: { where: { timestamp: { gte: sevenDaysAgo } } },
       links: {
@@ -106,10 +106,10 @@ export async function generateInsights(userId: string): Promise<Insight[]> {
 
   // Bot traffic alert
   const totalClicks7d = await prisma.click.count({
-    where: { userId, timestamp: { gte: sevenDaysAgo } },
+    where: { userId: { in: teamIds }, timestamp: { gte: sevenDaysAgo } },
   });
   const botClicks7d = await prisma.click.count({
-    where: { userId, isBot: true, timestamp: { gte: sevenDaysAgo } },
+    where: { userId: { in: teamIds }, isBot: true, timestamp: { gte: sevenDaysAgo } },
   });
 
   if (totalClicks7d > 0 && botClicks7d / totalClicks7d > 0.2) {
@@ -127,23 +127,23 @@ export async function generateInsights(userId: string): Promise<Insight[]> {
 
   // Device insight: mobile vs desktop conversion rates
   const mobileClicks = await prisma.click.count({
-    where: { userId, device: 'mobile', timestamp: { gte: sevenDaysAgo } },
+    where: { userId: { in: teamIds }, device: 'mobile', timestamp: { gte: sevenDaysAgo } },
   });
   const desktopClicks = await prisma.click.count({
-    where: { userId, device: 'desktop', timestamp: { gte: sevenDaysAgo } },
+    where: { userId: { in: teamIds }, device: 'desktop', timestamp: { gte: sevenDaysAgo } },
   });
 
   if (mobileClicks > 0 && desktopClicks > 0) {
     const mobileConvs = await prisma.conversion.count({
       where: {
-        userId,
+        userId: { in: teamIds },
         timestamp: { gte: sevenDaysAgo },
         click: { device: 'mobile' },
       },
     });
     const desktopConvs = await prisma.conversion.count({
       where: {
-        userId,
+        userId: { in: teamIds },
         timestamp: { gte: sevenDaysAgo },
         click: { device: 'desktop' },
       },
