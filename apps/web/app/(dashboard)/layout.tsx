@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
@@ -40,6 +40,27 @@ interface User {
   role?: string;
 }
 
+interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
+const NOTIFICATIONS_POLL_MS = 45000;
+
+function notificationTimeAgo(iso: string): string {
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 const NAV_ITEMS = [
   { href: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/campaigns',   icon: Megaphone,        label: 'Campaigns' },
@@ -73,10 +94,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [impersonating, setImpersonating] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [collapseLoaded, setCollapseLoaded] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setImpersonating(isImpersonating());
   }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.get<{ notifications: AppNotification[]; unreadCount: number }>('/api/notifications?limit=20');
+      setNotifications(data.notifications);
+      setUnreadCount(data.unreadCount);
+    } catch {
+      // silent — notifications are non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    fetchNotifications();
+    const id = setInterval(fetchNotifications, NOTIFICATIONS_POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  async function markNotificationRead(id: string) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await api.post(`/api/notifications/${id}/read`, {});
+    } catch {
+      // best-effort
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await api.post('/api/notifications/read-all', {});
+    } catch {
+      // best-effort
+    }
+  }
 
   // Restore sidebar collapse preference
   useEffect(() => {
@@ -298,10 +370,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-3">
             {/* Notifications */}
-            <button className="relative w-9 h-9 flex items-center justify-center rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:border-[#cbd5e1] transition-colors text-[#94a3b8] hover:text-[#64748b]">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#6366f1] rounded-full" />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen((v) => !v)}
+                className="relative w-9 h-9 flex items-center justify-center rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:border-[#cbd5e1] transition-colors text-[#94a3b8] hover:text-[#64748b]"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-[3px] flex items-center justify-center bg-[#ef4444] rounded-full text-[9px] font-bold text-white leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 top-11 w-80 max-h-[420px] overflow-y-auto bg-[#ffffff] border border-[#e2e8f0] rounded-xl shadow-2xl z-50">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e2e8f0] sticky top-0 bg-[#ffffff]">
+                    <span className="text-sm font-semibold text-[#0f172a]">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-[#6366f1] hover:text-[#5558e3] font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-sm text-[#94a3b8]">
+                      No notifications yet
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => !n.read && markNotificationRead(n.id)}
+                        className={`block w-full text-left px-4 py-3 border-b border-[#e2e8f0]/60 last:border-b-0 transition-colors ${
+                          n.read ? 'bg-[#ffffff] hover:bg-[#f8fafc]' : 'bg-[#6366f1]/5 hover:bg-[#6366f1]/10'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#6366f1] flex-shrink-0" />}
+                          <div className={n.read ? 'flex-1 min-w-0' : 'flex-1 min-w-0 -ml-0'}>
+                            <p className="text-xs font-semibold text-[#0f172a] mb-0.5">{n.title}</p>
+                            <p className="text-[11px] text-[#64748b] leading-relaxed">{n.message}</p>
+                            <p className="text-[10px] text-[#94a3b8] mt-1">{notificationTimeAgo(n.createdAt)}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* New Campaign */}
             <Link
