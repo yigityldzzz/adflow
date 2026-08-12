@@ -18,6 +18,14 @@ enum Role {
   ADMIN
 }
 
+// Role within a team/organization — distinct from the platform-level Role
+// above (which controls access to AdFlow's own admin panel).
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 enum CampaignStatus {
   ACTIVE
   PAUSED
@@ -55,6 +63,50 @@ model User {
   landers         Lander[]
   flows           Flow[]
   notifications   Notification[]
+  ownedOrganizations   Organization[]       @relation("OrgOwner")
+  organizationMembership OrganizationMember?
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  owner     User                 @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   OrganizationMember[]
+  invites   OrganizationInvite[]
+
+  @@index([ownerId])
+}
+
+// A user belongs to at most one organization (one active workspace) — kept
+// intentionally simple rather than supporting multi-org membership.
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String   @unique
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model OrganizationInvite {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole   @default(MEMBER)
+  token          String    @unique @default(cuid())
+  invitedBy      String
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
 }
 
 model Notification {
