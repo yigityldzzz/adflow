@@ -339,7 +339,17 @@ export default function CampaignsPage() {
                     <TrendingUp className="w-3 h-3" />
                     <span className="text-[10px] uppercase tracking-wide">ROAS</span>
                   </div>
-                  <p className="text-sm font-bold text-[#0f172a]">
+                  <p
+                    className="text-sm font-bold"
+                    style={{
+                      color:
+                        campaign.stats?.roas == null
+                          ? '#0f172a'
+                          : campaign.stats.roas >= 1
+                          ? '#10b981'
+                          : '#ef4444',
+                    }}
+                  >
                     {campaign.stats?.roas ? `${campaign.stats.roas.toFixed(2)}x` : '—'}
                   </p>
                 </div>
