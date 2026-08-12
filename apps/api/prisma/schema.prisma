@@ -149,6 +149,7 @@ model Click {
   fbclid         String?
   gclid          String?
   ttclid         String?
+  sccid          String?
   externalClickId String?
   ip             String?
   country        String?
@@ -210,6 +211,7 @@ model TrafficSource {
   pixelId     String?
   accessToken String?
   fbEventName String?
+  eventName   String?    // TikTok/Snapchat conversion event name (fbEventName is Meta-only)
   createdAt   DateTime   @default(now())
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaigns   Campaign[]
