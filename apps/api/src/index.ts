@@ -21,6 +21,7 @@ import flowsRouter from './routes/flows';
 import notificationsRouter from './routes/notifications';
 import redirectRouter from './tracking/redirect';
 import { checkAllAlerts } from './services/alertChecker';
+import { enforceDataRetention } from './services/retention';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '6000', 10);
@@ -112,5 +113,15 @@ app.listen(PORT, () => {
 setInterval(() => {
   checkAllAlerts().catch((e) => console.error('[AlertChecker]', e));
 }, 5 * 60 * 1000);
+
+// Enforce per-plan data retention once a day. Also run shortly after startup
+// (not immediately, to avoid competing with app boot) so a freshly deployed
+// server doesn't wait a full 24h before the first cleanup pass.
+setTimeout(() => {
+  enforceDataRetention().catch((e) => console.error('[Retention]', e));
+}, 2 * 60 * 1000);
+setInterval(() => {
+  enforceDataRetention().catch((e) => console.error('[Retention]', e));
+}, 24 * 60 * 60 * 1000);
 
 export default app;
