@@ -28,6 +28,7 @@ import {
   GitBranch,
   MousePointerClick,
   Users,
+  Globe,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearAuth, getToken, isImpersonating, stopImpersonation } from '@/lib/auth';
@@ -70,6 +71,7 @@ const NAV_ITEMS = [
   { href: '/landers',     icon: Layout,           label: 'Landers' },
   { href: '/flows',       icon: GitBranch,        label: 'Flows' },
   { href: '/links',       icon: Link2,            label: 'Links' },
+  { href: '/domains',     icon: Globe,            label: 'Domains' },
   { href: '/analytics',   icon: BarChart3,           label: 'Analytics' },
   { href: '/clicks',      icon: MousePointerClick,   label: 'Click Log' },
   { href: '/conversions', icon: Target,              label: 'Conversions' },
