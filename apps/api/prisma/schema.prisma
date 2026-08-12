@@ -64,6 +64,7 @@ model User {
   flows           Flow[]
   notifications   Notification[]
   domains         Domain[]
+  adAccountConnections AdAccountConnection[]
   ownedOrganizations   Organization[]       @relation("OrgOwner")
   organizationMembership OrganizationMember?
 }
@@ -162,6 +163,8 @@ model Campaign {
   status      CampaignStatus @default(ACTIVE)
   budget      Float?
   cost        Float?
+  costSyncedAt    DateTime?      // last time `cost` was auto-updated from a connected ad account
+  externalCampaignId String?     // the matching campaign id on the ad platform (e.g. Meta campaign_id), for cost auto-sync
   createdAt   DateTime       @default(now())
   trafficSourceId String?
   flowId          String?
@@ -171,6 +174,27 @@ model Campaign {
   links           TrackingLink[]
   clicks          Click[]
   alerts          Alert[]
+}
+
+// An OAuth-connected ad account whose spend we can auto-pull into
+// Campaign.cost. Meta only for now — the developer app registration process
+// (App ID/Secret, App Review for ads_read) is something the account owner
+// must complete on Meta's side; this table just stores the resulting tokens.
+model AdAccountConnection {
+  id             String    @id @default(cuid())
+  userId         String
+  platform       String    @default("meta")
+  accountId      String    // e.g. "act_1234567890"
+  accountName    String?
+  accessToken    String
+  tokenExpiresAt DateTime?
+  lastSyncAt     DateTime?
+  lastSyncError  String?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, accountId])
+  @@index([userId])
 }
 
 model TrackingLink {
