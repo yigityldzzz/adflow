@@ -46,17 +46,17 @@ const FEATURES = [
   },
   {
     icon: <Target className="w-6 h-6" />,
-    title: 'Multi-Touch Attribution',
+    title: 'Precise Click Attribution',
     description:
-      'Understand the full customer journey with first-touch, last-touch, and linear attribution models across all Meta campaigns.',
+      'Every conversion is linked back to its originating click — full visitor data, UTM parameters, and click IDs (fbclid, gclid, ttclid) captured automatically.',
     color: 'from-indigo-500/20 to-blue-500/20',
     iconColor: 'text-indigo-400',
   },
   {
     icon: <Bot className="w-6 h-6" />,
-    title: 'AI-Powered Insights',
+    title: 'Automated Performance Alerts',
     description:
-      'Our ML engine analyzes patterns in your click data to surface actionable insights and optimize your ad spend automatically.',
+      'Automatic detection of ad fatigue, CPA spikes, and traffic anomalies — surfaced as clear alerts so you catch problems before they cost you.',
     color: 'from-violet-500/20 to-purple-500/20',
     iconColor: 'text-violet-400',
   },
@@ -125,9 +125,9 @@ const STEPS = [
   },
   {
     number: '03',
-    title: 'Optimize with AI',
+    title: 'Spot Problems Early',
     description:
-      'Our AI analyzes your data to identify top-performing segments, detect anomalies, and recommend budget reallocations to maximize ROAS.',
+      'Automated alerts flag ad fatigue, cost spikes, and unusual bot activity — so you can act before they eat into your ROAS.',
   },
 ];
 
@@ -200,10 +200,10 @@ const SHOWCASE_TABS = [
 ];
 
 const STATS = [
-  { value: '10M+', label: 'Clicks Tracked', icon: <MousePointerClick className="w-5 h-5" /> },
-  { value: '99.9%', label: 'Uptime SLA', icon: <Activity className="w-5 h-5" /> },
-  { value: '<50ms', label: 'Redirect Latency', icon: <Zap className="w-5 h-5" /> },
-  { value: '150+', label: 'Countries Covered', icon: <Globe className="w-5 h-5" /> },
+  { value: 'Self-Hosted', label: 'Your Infrastructure', icon: <MousePointerClick className="w-5 h-5" /> },
+  { value: 'S2S + Pixel', label: 'Dual Conversion Tracking', icon: <Activity className="w-5 h-5" /> },
+  { value: 'Meta CAPI', label: 'Native Integration', icon: <Zap className="w-5 h-5" /> },
+  { value: 'Real-Time', label: 'Click-Level Data', icon: <Globe className="w-5 h-5" /> },
 ];
 
 export default function LandingPage() {
@@ -220,7 +220,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center shadow-lg shadow-indigo-500/25">
               <Activity className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">
+            <span className="text-lg font-bold text-[#0f172a] tracking-tight">
               Ad<span className="gradient-text">Flow</span>
             </span>
           </Link>
@@ -300,7 +300,7 @@ export default function LandingPage() {
           {/* Announcement badge */}
           <div className="inline-flex items-center gap-2 bg-[#ffffff] border border-[#e2e8f0] rounded-full px-4 py-1.5 text-sm text-[#64748b] mb-8">
             <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse-slow" />
-            New: AI-powered budget optimization is live
+            New: Meta Conversions API integration
             <ChevronRight className="w-3 h-3" />
           </div>
 
@@ -314,8 +314,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-[#64748b] max-w-2xl mx-auto mb-10 leading-relaxed">
-            AI-powered attribution platform for Meta Ads and performance marketers.
-            Sub-50ms redirects, real-time analytics, and fraud detection in one dashboard.
+            The self-hosted attribution platform for Meta Ads and performance marketers.
+            Real-time analytics, server-side conversion tracking, and fraud detection in one dashboard.
           </p>
 
           {/* CTA buttons */}
@@ -847,7 +847,7 @@ export default function LandingPage() {
             <div className="relative">
               <div className="inline-flex items-center gap-2 bg-[#6366f1]/20 border border-[#6366f1]/30 rounded-full px-4 py-1.5 text-sm text-[#a5b4fc] mb-6">
                 <TrendingUp className="w-4 h-4" />
-                Join 2,000+ performance marketers
+                Built for performance marketers
               </div>
               <h2 className="text-4xl sm:text-5xl font-extrabold text-[#0f172a] mb-4">
                 Start tracking smarter today
@@ -884,7 +884,7 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center">
                 <Activity className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="text-base font-bold text-white">
+              <span className="text-base font-bold text-[#0f172a]">
                 Ad<span className="gradient-text">Flow</span>
               </span>
             </div>
