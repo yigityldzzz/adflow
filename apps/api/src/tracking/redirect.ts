@@ -13,7 +13,13 @@ const VISITOR_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 const TRACKING_PARAMS = new Set([
   'utm_source','utm_medium','utm_campaign','utm_content','utm_term',
   'fbclid','gclid','ttclid','ref','referrer',
+  'clickid','click_id','subid','sub_id','cid',
 ]);
+
+// Common query-param names traffic networks use to pass their own click
+// identifier into our tracking link. We store whichever one is present so it
+// can be echoed back verbatim in outbound postbacks to that network later.
+const EXTERNAL_CLICKID_PARAMS = ['clickid', 'click_id', 'subid', 'sub_id', 'cid'];
 
 function getRealIp(req: Request): string {
   const cf = req.headers['cf-connecting-ip'];
@@ -159,7 +165,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   const link = await prisma.trackingLink.findUnique({
     where: { slug },
     include: {
-      campaign: { select: { id: true, flowId: true } },
+      campaign: { select: { id: true, flowId: true, status: true } },
     },
   });
 
@@ -193,11 +199,19 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   const referrer    = req.headers['referer'] ?? q['referrer'] ?? null;
   const language    = req.headers['accept-language']?.split(',')[0] ?? null;
 
+  // Capture the traffic network's own click id, if it passed one, so we can
+  // echo it back verbatim in outbound postbacks to that network.
+  let externalClickId: string | null = null;
+  for (const key of EXTERNAL_CLICKID_PARAMS) {
+    if (q[key]) { externalClickId = q[key]; break; }
+  }
+
   // Pass-through params for Lander/Offer URLs
   const passParams: Record<string, string> = { adflow_vid: visitorId };
   if (fbclid) passParams['fbclid'] = fbclid;
   if (gclid)  passParams['gclid']  = gclid;
   if (ttclid) passParams['ttclid'] = ttclid;
+  if (externalClickId) passParams['clickid'] = externalClickId;
 
   // ── Bot handling ─────────────────────────────────────────────────────────
   // Known bots (UA pattern or known bad IP range) are never forwarded to the
@@ -215,7 +229,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
         userId: link.userId,
         visitorId,
         utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-        fbclid, gclid, ttclid,
+        fbclid, gclid, ttclid, externalClickId,
         ip,
         country:      geo.country      ?? null,
         countryCode:  geo.countryCode  ?? null,
@@ -226,6 +240,37 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
         language, referrer: referrer ?? null,
         userAgent: userAgentString || null,
         isBot: true, isSuspicious, isUnique: false,
+      },
+    }).catch(() => {});
+    return;
+  }
+
+  // ── Paused-campaign handling ────────────────────────────────────────────
+  // A campaign can be paused manually or automatically (via an alert action).
+  // While paused we stop forwarding clicks to the real offer/lander — but we
+  // still log the click (so it's visible in reporting) rather than silently
+  // dropping it.
+  if (link.campaign?.status === 'PAUSED') {
+    res.status(200).type('text/plain').send('');
+
+    prisma.click.create({
+      data: {
+        linkId: link.id,
+        campaignId: link.campaignId ?? null,
+        userId: link.userId,
+        visitorId,
+        utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+        fbclid, gclid, ttclid, externalClickId,
+        ip,
+        country:      geo.country      ?? null,
+        countryCode:  geo.countryCode  ?? null,
+        city:         geo.city         ?? null,
+        region:       geo.region       ?? null,
+        browser, browserVersion, os,
+        device:   deviceType,
+        language, referrer: referrer ?? null,
+        userAgent: userAgentString || null,
+        isBot: false, isSuspicious, isUnique: false,
       },
     }).catch(() => {});
     return;
@@ -277,7 +322,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
       userId: link.userId,
       visitorId,
       utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-      fbclid, gclid, ttclid,
+      fbclid, gclid, ttclid, externalClickId,
       ip,
       country:      geo.country      ?? null,
       countryCode:  geo.countryCode  ?? null,
