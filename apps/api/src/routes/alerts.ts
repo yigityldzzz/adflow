@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 router.use(authenticate);
@@ -33,8 +34,9 @@ const alertUpdateSchema = alertBaseSchema.partial().refine(
 
 // GET /api/alerts
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
+  const teamIds = await getTeamUserIds(req.user!.id);
   const alerts = await prisma.alert.findMany({
-    where: { userId: req.user!.id },
+    where: { userId: { in: teamIds } },
     orderBy: { createdAt: 'desc' },
     include: { campaign: { select: { id: true, name: true, status: true } } },
   });
@@ -49,8 +51,9 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
+  const teamIds = await getTeamUserIds(req.user!.id);
   if (parse.data.campaignId) {
-    const campaign = await prisma.campaign.findFirst({ where: { id: parse.data.campaignId, userId: req.user!.id } });
+    const campaign = await prisma.campaign.findFirst({ where: { id: parse.data.campaignId, userId: { in: teamIds } } });
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
       return;
@@ -66,8 +69,9 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
 // PATCH /api/alerts/:id
 router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+  const teamIds = await getTeamUserIds(req.user!.id);
   const existing = await prisma.alert.findUnique({ where: { id: req.params.id } });
-  if (!existing || existing.userId !== req.user!.id) {
+  if (!existing || !teamIds.includes(existing.userId)) {
     res.status(404).json({ error: 'Alert not found' });
     return;
   }
@@ -78,7 +82,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   if (parse.data.campaignId) {
-    const campaign = await prisma.campaign.findFirst({ where: { id: parse.data.campaignId, userId: req.user!.id } });
+    const campaign = await prisma.campaign.findFirst({ where: { id: parse.data.campaignId, userId: { in: teamIds } } });
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
       return;
@@ -95,8 +99,9 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 
 // DELETE /api/alerts/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+  const teamIds = await getTeamUserIds(req.user!.id);
   const existing = await prisma.alert.findUnique({ where: { id: req.params.id } });
-  if (!existing || existing.userId !== req.user!.id) {
+  if (!existing || !teamIds.includes(existing.userId)) {
     res.status(404).json({ error: 'Alert not found' });
     return;
   }
@@ -109,23 +114,26 @@ router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => 
 // background checkAllAlerts() job so a manual visit to the Alerts page gets
 // fresh state immediately instead of waiting for the next 5-minute tick.
 router.post('/evaluate', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const now = new Date();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const alerts = await prisma.alert.findMany({
-    where: { userId, enabled: true },
+    where: { userId: { in: teamIds }, enabled: true },
     include: { campaign: { select: { id: true, name: true, status: true } } },
   });
 
   const results = await Promise.all(
     alerts.map(async (alert) => {
+      // Account-wide alerts aggregate across the whole team (teammates share
+      // visibility into each other's campaigns); campaign-scoped alerts are
+      // narrowed further to that one campaign regardless of who owns it.
       const clickWhere = alert.campaignId
-        ? { userId, campaignId: alert.campaignId, timestamp: { gte: since } }
-        : { userId, timestamp: { gte: since } };
+        ? { userId: { in: teamIds }, campaignId: alert.campaignId, timestamp: { gte: since } }
+        : { userId: { in: teamIds }, timestamp: { gte: since } };
       const convWhere = alert.campaignId
-        ? { userId, timestamp: { gte: since }, click: { campaignId: alert.campaignId } }
-        : { userId, timestamp: { gte: since } };
+        ? { userId: { in: teamIds }, timestamp: { gte: since }, click: { campaignId: alert.campaignId } }
+        : { userId: { in: teamIds }, timestamp: { gte: since } };
 
       const [clicks, botClicks, conversions, conversionValues, spend] = await Promise.all([
         prisma.click.count({ where: clickWhere }),
@@ -134,7 +142,7 @@ router.post('/evaluate', async (req: AuthRequest, res: Response): Promise<void> 
         prisma.conversion.findMany({ where: convWhere, select: { value: true } }),
         alert.campaignId
           ? prisma.campaign.findUnique({ where: { id: alert.campaignId }, select: { cost: true } }).then((c) => c?.cost ?? 0)
-          : prisma.campaign.aggregate({ where: { userId }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0),
+          : prisma.campaign.aggregate({ where: { userId: { in: teamIds } }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0),
       ]);
 
       const revenue = conversionValues.reduce((s, c) => s + c.value, 0);
