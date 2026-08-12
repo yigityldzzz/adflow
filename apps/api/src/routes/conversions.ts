@@ -8,6 +8,7 @@ import { sendMetaCapiEvent } from '../services/metaCapi';
 import { sendTikTokEvent } from '../services/tiktokCapi';
 import { sendSnapEvent } from '../services/snapCapi';
 import { fireGenericPostback } from '../services/postback';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 
@@ -305,7 +306,7 @@ router.get('/pixel/:token', async (req: Request, res: Response): Promise<void> =
 
 // GET /api/conversions — auth
 router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId  = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const limit   = Math.min(parseInt(String(req.query.limit  ?? '50'), 10), 200);
   const offset  = Math.max(parseInt(String(req.query.offset ?? '0'),  10), 0);
 
@@ -326,7 +327,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
   }
 
   const where: Record<string, unknown> = {
-    userId,
+    userId: { in: teamIds },
     ...(dateFilter   && { timestamp: dateFilter }),
     ...(type         && { type }),
     ...(campaignId   && { link: { campaignId } }),
