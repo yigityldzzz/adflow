@@ -45,6 +45,9 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
       source: c.source,
       status: c.status,
       budget: c.budget,
+      cost: c.cost,
+      externalCampaignId: c.externalCampaignId,
+      costSyncedAt: c.costSyncedAt,
       createdAt: c.createdAt,
       stats: {
         totalClicks,
@@ -68,6 +71,7 @@ const createCampaignSchema = z.object({
   cost: z.number().min(0).optional(),
   trafficSourceId: z.string().optional().nullable(),
   flowId: z.string().optional().nullable(),
+  externalCampaignId: z.string().optional().nullable(),
 });
 
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
@@ -165,6 +169,7 @@ const updateCampaignSchema = z.object({
   source: z.string().optional(),
   budget: z.number().positive().optional(),
   cost: z.number().min(0).optional(),
+  externalCampaignId: z.string().optional().nullable(),
   trafficSourceId: z.string().optional().nullable(),
   flowId: z.string().optional().nullable(),
   status: z.nativeEnum(CampaignStatus).optional(),
