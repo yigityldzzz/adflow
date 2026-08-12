@@ -72,6 +72,7 @@ const NAV_ITEMS = [
   { href: '/flows',       icon: GitBranch,        label: 'Flows' },
   { href: '/links',       icon: Link2,            label: 'Links' },
   { href: '/domains',     icon: Globe,            label: 'Domains' },
+  { href: '/ad-accounts', icon: Link2,            label: 'Ad Accounts' },
   { href: '/analytics',   icon: BarChart3,           label: 'Analytics' },
   { href: '/clicks',      icon: MousePointerClick,   label: 'Click Log' },
   { href: '/conversions', icon: Target,              label: 'Conversions' },
