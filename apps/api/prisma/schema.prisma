@@ -54,6 +54,20 @@ model User {
   offers          Offer[]
   landers         Lander[]
   flows           Flow[]
+  notifications   Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 model Alert {
@@ -66,11 +80,15 @@ model Alert {
   enabled     Boolean   @default(true)
   triggered   Boolean   @default(false)
   webhookUrl  String?
+  campaignId  String?
+  action      String    @default("notify") // 'notify' | 'pause_campaign'
   lastChecked DateTime?
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([campaignId])
 }
 
 model RefreshToken {
@@ -99,6 +117,7 @@ model Campaign {
   flow            Flow?          @relation(fields: [flowId], references: [id])
   links           TrackingLink[]
   clicks          Click[]
+  alerts          Alert[]
 }
 
 model TrackingLink {
@@ -130,6 +149,7 @@ model Click {
   fbclid         String?
   gclid          String?
   ttclid         String?
+  externalClickId String?
   ip             String?
   country        String?
   countryCode    String?
