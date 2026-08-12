@@ -20,6 +20,7 @@ import landersRouter from './routes/landers';
 import flowsRouter from './routes/flows';
 import notificationsRouter from './routes/notifications';
 import organizationsRouter from './routes/organizations';
+import domainsRouter from './routes/domains';
 import redirectRouter from './tracking/redirect';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
@@ -102,6 +103,7 @@ app.use('/api/landers', generalLimiter, landersRouter);
 app.use('/api/flows', generalLimiter, flowsRouter);
 app.use('/api/notifications', generalLimiter, notificationsRouter);
 app.use('/api/organizations', generalLimiter, organizationsRouter);
+app.use('/api/domains', generalLimiter, domainsRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
