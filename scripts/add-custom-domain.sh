@@ -99,7 +99,7 @@ server {
     location /api/conversions/pixel/ {
         proxy_pass         http://127.0.0.1:6000;
         proxy_buffering    off;
-        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Real-IP \$remote_addr;
         proxy_set_header   CF-Connecting-IP \$http_cf_connecting_ip;
     }
 
