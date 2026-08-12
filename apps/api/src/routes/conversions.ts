@@ -5,6 +5,7 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ConversionType } from '@prisma/client';
 import { sendMetaCapiEvent } from '../services/metaCapi';
+import { fireGenericPostback } from '../services/postback';
 
 const router = Router();
 
@@ -75,6 +76,47 @@ async function fireMetaCapi(conversionId: string, clickId: string | null, linkId
   else console.log('[CAPI] OK', conversionId, fbclid);
 }
 
+// Fires an outbound postback to the traffic source's own postback URL (any
+// platform), substituting {clickid}, {cost}, {country}, etc. This is separate
+// from Meta CAPI — a traffic source can have either, both, or neither
+// configured.
+async function fireTrafficSourcePostback(
+  conversionId: string,
+  clickId: string | null,
+  linkId: string,
+  value: number
+): Promise<void> {
+  const link = await prisma.trackingLink.findUnique({
+    where: { id: linkId },
+    include: { campaign: { include: { trafficSource: true } } },
+  });
+  const ts = link?.campaign?.trafficSource;
+  if (!ts?.postbackUrl) return;
+
+  let click: { externalClickId: string | null; visitorId: string; ip: string | null; country: string | null; city: string | null; device: string | null; os: string | null; browser: string | null } | null = null;
+  if (clickId) {
+    click = await prisma.click.findUnique({
+      where: { id: clickId },
+      select: { externalClickId: true, visitorId: true, ip: true, country: true, city: true, device: true, os: true, browser: true },
+    });
+  }
+
+  await fireGenericPostback(ts.postbackUrl, {
+    clickId: click?.externalClickId || click?.visitorId || null,
+    campaignId: link?.campaign?.id ?? null,
+    campaignName: link?.campaign?.name ?? null,
+    device: click?.device ?? null,
+    os: click?.os ?? null,
+    browser: click?.browser ?? null,
+    country: click?.country ?? null,
+    city: click?.city ?? null,
+    ip: click?.ip ?? null,
+    value,
+  }).catch(() => {});
+
+  console.log('[Postback] fired', conversionId, ts.name);
+}
+
 async function handlePostback(req: Request, res: Response): Promise<void> {
   const parse = postbackSchema.safeParse({ ...req.query, ...req.body });
   if (!parse.success) { res.status(400).json({ error: parse.error.errors[0]?.message }); return; }
@@ -120,6 +162,7 @@ async function handlePostback(req: Request, res: Response): Promise<void> {
 
   res.json({ ok: true, conversionId: conversion.id });
   fireMetaCapi(conversion.id, clickId, link.id, value, currency, type, txid).catch(() => {});
+  fireTrafficSourcePostback(conversion.id, clickId, link.id, value).catch(() => {});
 }
 
 router.get('/postback', handlePostback);
@@ -161,6 +204,7 @@ router.get('/pixel/:token', async (req: Request, res: Response): Promise<void> =
       data: { linkId: link.id, userId: link.userId, clickId, type: validType, value: isNaN(value) ? 0 : value, currency, txid },
     });
     fireMetaCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
+    fireTrafficSourcePostback(conversion.id, clickId, link.id, value).catch(() => {});
   } catch { /* pixel already sent */ }
 });
 
