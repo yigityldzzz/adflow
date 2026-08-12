@@ -12,7 +12,7 @@ const VISITOR_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
 const TRACKING_PARAMS = new Set([
   'utm_source','utm_medium','utm_campaign','utm_content','utm_term',
-  'fbclid','gclid','ttclid','ref','referrer',
+  'fbclid','gclid','ttclid','sccid','ScCid','ref','referrer',
   'clickid','click_id','subid','sub_id','cid',
 ]);
 
@@ -196,6 +196,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   const fbclid      = q['fbclid']       ?? null;
   const gclid       = q['gclid']        ?? null;
   const ttclid      = q['ttclid']       ?? null;
+  const sccid       = q['sccid']        ?? q['ScCid'] ?? null; // Snapchat click id — network-dependent casing
   const referrer    = req.headers['referer'] ?? q['referrer'] ?? null;
   const language    = req.headers['accept-language']?.split(',')[0] ?? null;
 
@@ -211,6 +212,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   if (fbclid) passParams['fbclid'] = fbclid;
   if (gclid)  passParams['gclid']  = gclid;
   if (ttclid) passParams['ttclid'] = ttclid;
+  if (sccid)  passParams['sccid']  = sccid;
   if (externalClickId) passParams['clickid'] = externalClickId;
 
   // ── Bot handling ─────────────────────────────────────────────────────────
@@ -229,7 +231,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
         userId: link.userId,
         visitorId,
         utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-        fbclid, gclid, ttclid, externalClickId,
+        fbclid, gclid, ttclid, sccid, externalClickId,
         ip,
         country:      geo.country      ?? null,
         countryCode:  geo.countryCode  ?? null,
@@ -260,7 +262,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
         userId: link.userId,
         visitorId,
         utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-        fbclid, gclid, ttclid, externalClickId,
+        fbclid, gclid, ttclid, sccid, externalClickId,
         ip,
         country:      geo.country      ?? null,
         countryCode:  geo.countryCode  ?? null,
@@ -322,7 +324,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
       userId: link.userId,
       visitorId,
       utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-      fbclid, gclid, ttclid, externalClickId,
+      fbclid, gclid, ttclid, sccid, externalClickId,
       ip,
       country:      geo.country      ?? null,
       countryCode:  geo.countryCode  ?? null,
