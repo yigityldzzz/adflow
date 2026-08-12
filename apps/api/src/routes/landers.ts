@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { prisma } from '../config/database';
+import { getTeamUserIds } from '../services/team';
 
 
 const router = Router();
@@ -21,8 +22,9 @@ router.use(authenticate);
 
 router.get('/', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const landers = await prisma.lander.findMany({
-      where: { userId: (req as AuthRequest).user!.id },
+      where: { userId: { in: teamIds } },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ landers });
@@ -48,8 +50,9 @@ router.patch('/:id', async (req, res: Response) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const result = await prisma.lander.updateMany({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
       data: parsed.data,
     });
     if (result.count === 0) return res.status(404).json({ error: 'Not found' });
@@ -62,7 +65,8 @@ router.patch('/:id', async (req, res: Response) => {
 
 router.delete('/:id', async (req, res: Response) => {
   try {
-    await prisma.lander.deleteMany({ where: { id: req.params.id, userId: (req as AuthRequest).user!.id } });
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
+    await prisma.lander.deleteMany({ where: { id: req.params.id, userId: { in: teamIds } } });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Failed to delete' });
