@@ -18,6 +18,7 @@ import trafficSourcesRouter from './routes/traffic-sources';
 import offersRouter from './routes/offers';
 import landersRouter from './routes/landers';
 import flowsRouter from './routes/flows';
+import notificationsRouter from './routes/notifications';
 import redirectRouter from './tracking/redirect';
 import { checkAllAlerts } from './services/alertChecker';
 
@@ -97,6 +98,7 @@ app.use('/api/traffic-sources', generalLimiter, trafficSourcesRouter);
 app.use('/api/offers', generalLimiter, offersRouter);
 app.use('/api/landers', generalLimiter, landersRouter);
 app.use('/api/flows', generalLimiter, flowsRouter);
+app.use('/api/notifications', generalLimiter, notificationsRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
