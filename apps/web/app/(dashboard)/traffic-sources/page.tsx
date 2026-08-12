@@ -18,21 +18,25 @@ interface TrafficSource {
   pixelId?: string | null;
   accessToken?: string | null;
   fbEventName?: string | null;
+  eventName?: string | null;
   createdAt: string;
   _count?: { campaigns: number };
 }
 
 const PLATFORM_META = {
-  meta:   { icon: '📘', label: 'Meta Ads',    color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  google: { icon: '🔍', label: 'Google Ads',  color: 'text-green-600 bg-green-50 border-green-200' },
-  tiktok: { icon: '🎵', label: 'TikTok Ads',  color: 'text-pink-600 bg-pink-50 border-pink-200' },
-  native: { icon: '📰', label: 'Native',      color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  push:   { icon: '🔔', label: 'Push',        color: 'text-purple-600 bg-purple-50 border-purple-200' },
-  other:  { icon: '🔗', label: 'Other',       color: 'text-[#64748b] bg-[#f1f5f9] border-[#e2e8f0]' },
+  meta:     { icon: '📘', label: 'Meta Ads',     color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  google:   { icon: '🔍', label: 'Google Ads',   color: 'text-green-600 bg-green-50 border-green-200' },
+  tiktok:   { icon: '🎵', label: 'TikTok Ads',   color: 'text-pink-600 bg-pink-50 border-pink-200' },
+  snapchat: { icon: '👻', label: 'Snapchat Ads', color: 'text-yellow-500 bg-yellow-50 border-yellow-200' },
+  native:   { icon: '📰', label: 'Native',       color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
+  push:     { icon: '🔔', label: 'Push',         color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  other:    { icon: '🔗', label: 'Other',        color: 'text-[#64748b] bg-[#f1f5f9] border-[#e2e8f0]' },
 };
 
 const COST_MODELS = ['CPC', 'CPM', 'AUTO', 'FIXED'];
 const FB_EVENTS = ['Purchase', 'Lead', 'CompleteRegistration', 'ViewContent', 'AddToCart', 'InitiateCheckout', 'Subscribe'];
+const TIKTOK_EVENTS = ['CompletePayment', 'SubmitForm', 'CompleteRegistration', 'ViewContent', 'AddToCart', 'InitiateCheckout'];
+const SNAP_EVENTS = ['PURCHASE', 'SIGN_UP', 'ADD_CART', 'START_CHECKOUT', 'VIEW_CONTENT', 'SUBSCRIBE'];
 const TOKENS = [
   '{clickid}', '{campaign.id}', '{campaign.name}',
   '{device}', '{os}', '{browser}', '{country}', '{city}', '{cost}', '{ip}',
@@ -40,7 +44,7 @@ const TOKENS = [
 
 const INITIAL_FORM = {
   name: '', platform: 'meta', postbackUrl: '', costModel: 'CPC', tags: '',
-  pixelId: '', accessToken: '', fbEventName: 'Purchase',
+  pixelId: '', accessToken: '', fbEventName: 'Purchase', eventName: '',
 };
 
 export default function TrafficSourcesPage() {
@@ -86,6 +90,7 @@ export default function TrafficSourcesPage() {
       pixelId: s.pixelId ?? '',
       accessToken: s.accessToken ?? '',
       fbEventName: s.fbEventName ?? 'Purchase',
+      eventName: s.eventName ?? '',
     });
   };
 
@@ -102,6 +107,7 @@ export default function TrafficSourcesPage() {
         ...(editForm.pixelId !== undefined && { pixelId: editForm.pixelId }),
         ...(editForm.accessToken && !editForm.accessToken.startsWith('••') && { accessToken: editForm.accessToken }),
         ...(editForm.fbEventName && { fbEventName: editForm.fbEventName }),
+        ...(editForm.eventName !== undefined && { eventName: editForm.eventName }),
         ...(editForm.postbackUrl !== undefined && { postbackUrl: editForm.postbackUrl }),
       });
       toast({ type: 'success', title: 'Traffic source updated!' });
@@ -129,6 +135,7 @@ export default function TrafficSourcesPage() {
         pixelId: form.pixelId || undefined,
         accessToken: form.accessToken || undefined,
         fbEventName: form.fbEventName || undefined,
+        eventName: form.eventName || undefined,
       });
       toast({ type: 'success', title: 'Traffic source created!', description: `"${form.name}" added.` });
       setShowModal(false);
@@ -422,6 +429,74 @@ export default function TrafficSourcesPage() {
                 </div>
               )}
 
+              {/* ── TikTok / Snapchat CAPI Section ── */}
+              {(form.platform === 'tiktok' || form.platform === 'snapchat') && (
+                <div className={`rounded-2xl border p-4 space-y-4 ${form.platform === 'tiktok' ? 'border-pink-200 bg-pink-50' : 'border-yellow-200 bg-yellow-50'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{form.platform === 'tiktok' ? '🎵' : '👻'}</span>
+                    <div>
+                      <p className={`text-xs font-bold ${form.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>
+                        {form.platform === 'tiktok' ? 'TikTok Events API' : 'Snapchat Conversions API'}
+                      </p>
+                      <p className={`text-[11px] mt-0.5 ${form.platform === 'tiktok' ? 'text-pink-500' : 'text-yellow-600'}`}>
+                        Otomatik server-side conversion eventi
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1.5 ${form.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>
+                      {form.platform === 'tiktok' ? 'Pixel Code (event_source_id)' : 'Pixel ID'}
+                    </label>
+                    <input
+                      type="text" value={form.pixelId}
+                      onChange={(e) => setForm((p) => ({ ...p, pixelId: e.target.value }))}
+                      placeholder={form.platform === 'tiktok' ? 'CXXXXXXXXXXXXXXXXXXX' : 'a1b2c3d4-...'}
+                      className={`w-full bg-[#ffffff] border rounded-xl px-4 py-2.5 text-sm text-[#0f172a] placeholder-[#94a3b8] font-mono transition-colors focus:outline-none ${form.platform === 'tiktok' ? 'border-pink-200 focus:border-pink-400' : 'border-yellow-200 focus:border-yellow-400'}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1.5 ${form.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>
+                      Access Token <span className="font-normal opacity-70">({form.platform === 'tiktok' ? 'Events Manager → Set up Events API' : 'Business Manager → Conversions API'})</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showToken ? 'text' : 'password'} value={form.accessToken}
+                        onChange={(e) => setForm((p) => ({ ...p, accessToken: e.target.value }))}
+                        placeholder="••••••••"
+                        className={`w-full bg-[#ffffff] border rounded-xl px-4 py-2.5 pr-10 text-sm text-[#0f172a] placeholder-[#94a3b8] font-mono transition-colors focus:outline-none ${form.platform === 'tiktok' ? 'border-pink-200 focus:border-pink-400' : 'border-yellow-200 focus:border-yellow-400'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowToken((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b]"
+                      >
+                        {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1.5 ${form.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>Conversion Event</label>
+                    <select
+                      value={form.eventName || (form.platform === 'tiktok' ? TIKTOK_EVENTS[0] : SNAP_EVENTS[0])}
+                      onChange={(e) => setForm((p) => ({ ...p, eventName: e.target.value }))}
+                      className={`w-full bg-[#ffffff] border rounded-xl px-4 py-2.5 text-sm text-[#0f172a] transition-colors focus:outline-none ${form.platform === 'tiktok' ? 'border-pink-200 focus:border-pink-400' : 'border-yellow-200 focus:border-yellow-400'}`}
+                    >
+                      {(form.platform === 'tiktok' ? TIKTOK_EVENTS : SNAP_EVENTS).map((ev) => (
+                        <option key={ev} value={ev}>{ev}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <p className={`text-[11px] leading-relaxed ${form.platform === 'tiktok' ? 'text-pink-500' : 'text-yellow-600'}`}>
+                    Bu, ancak tıklama {form.platform === 'tiktok' ? 'TikTok\'un ttclid' : 'Snapchat\'in sccid'} parametresiyle geldiyse ateşlenir
+                    (reklam linkinde bu parametre otomatik gelir, elle eklemene gerek yok).
+                  </p>
+                </div>
+              )}
+
               {/* Postback URL */}
               <div>
                 <label className="block text-xs font-medium text-[#64748b] mb-1.5">
@@ -537,6 +612,40 @@ export default function TrafficSourcesPage() {
                     <select value={editForm.fbEventName} onChange={(e) => setEditForm(p => ({ ...p, fbEventName: e.target.value }))}
                       className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors">
                       {FB_EVENTS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {(editForm.platform === 'tiktok' || editForm.platform === 'snapchat') && (
+                <div className={`p-4 border rounded-xl space-y-3 ${editForm.platform === 'tiktok' ? 'bg-pink-50 border-pink-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                  <p className={`text-xs font-semibold ${editForm.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>
+                    {editForm.platform === 'tiktok' ? 'TikTok Events API' : 'Snapchat Conversions API'}
+                  </p>
+                  <div>
+                    <label className="block text-xs font-medium text-[#64748b] mb-1.5">
+                      {editForm.platform === 'tiktok' ? 'Pixel Code' : 'Pixel ID'}
+                    </label>
+                    <input type="text" value={editForm.pixelId} onChange={(e) => setEditForm(p => ({ ...p, pixelId: e.target.value }))}
+                      className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#64748b] mb-1.5">Access Token</label>
+                    <div className="relative">
+                      <input type={showEditToken ? 'text' : 'password'} value={editForm.accessToken}
+                        onChange={(e) => setEditForm(p => ({ ...p, accessToken: e.target.value }))}
+                        placeholder="Boş bırakırsan mevcut token korunur"
+                        className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 pr-10 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
+                      <button type="button" onClick={() => setShowEditToken(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b]">
+                        {showEditToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#64748b] mb-1.5">Conversion Event</label>
+                    <select value={editForm.eventName || (editForm.platform === 'tiktok' ? TIKTOK_EVENTS[0] : SNAP_EVENTS[0])}
+                      onChange={(e) => setEditForm(p => ({ ...p, eventName: e.target.value }))}
+                      className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors">
+                      {(editForm.platform === 'tiktok' ? TIKTOK_EVENTS : SNAP_EVENTS).map(ev => <option key={ev} value={ev}>{ev}</option>)}
                     </select>
                   </div>
                 </div>
