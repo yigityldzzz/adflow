@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import { getTeamUserIds } from './team';
 
 async function fireWebhook(url: string, payload: Record<string, unknown>): Promise<void> {
   try {
@@ -21,12 +22,14 @@ interface MetricSet {
   cpa: number;
 }
 
-async function computeMetrics(userId: string, campaignId: string | null, sinceMs: number): Promise<MetricSet> {
+async function computeMetrics(teamIds: string[], campaignId: string | null, sinceMs: number): Promise<MetricSet> {
   const since = new Date(Date.now() - sinceMs);
-  const clickWhere = campaignId ? { userId, campaignId, timestamp: { gte: since } } : { userId, timestamp: { gte: since } };
+  const clickWhere = campaignId
+    ? { userId: { in: teamIds }, campaignId, timestamp: { gte: since } }
+    : { userId: { in: teamIds }, timestamp: { gte: since } };
   const convWhere = campaignId
-    ? { userId, timestamp: { gte: since }, click: { campaignId } }
-    : { userId, timestamp: { gte: since } };
+    ? { userId: { in: teamIds }, timestamp: { gte: since }, click: { campaignId } }
+    : { userId: { in: teamIds }, timestamp: { gte: since } };
 
   const [clicks, botClicks, conversions, conversionValues, spend] = await Promise.all([
     prisma.click.count({ where: clickWhere }),
@@ -35,7 +38,7 @@ async function computeMetrics(userId: string, campaignId: string | null, sinceMs
     prisma.conversion.findMany({ where: convWhere, select: { value: true } }),
     campaignId
       ? prisma.campaign.findUnique({ where: { id: campaignId }, select: { cost: true } }).then((c) => c?.cost ?? 0)
-      : prisma.campaign.aggregate({ where: { userId }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0),
+      : prisma.campaign.aggregate({ where: { userId: { in: teamIds } }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0),
   ]);
 
   const revenue = conversionValues.reduce((s, c) => s + c.value, 0);
@@ -53,10 +56,22 @@ export async function checkAllAlerts(): Promise<void> {
   });
   if (alerts.length === 0) return;
 
+  // Cache team-id lookups per owner within this run to avoid redundant queries.
+  const teamCache = new Map<string, Promise<string[]>>();
+  function teamIdsFor(userId: string): Promise<string[]> {
+    let cached = teamCache.get(userId);
+    if (!cached) {
+      cached = getTeamUserIds(userId);
+      teamCache.set(userId, cached);
+    }
+    return cached;
+  }
+
   for (const alert of alerts) {
     let current: number;
     try {
-      const metrics = await computeMetrics(alert.userId, alert.campaignId, 24 * 60 * 60 * 1000);
+      const teamIds = await teamIdsFor(alert.userId);
+      const metrics = await computeMetrics(teamIds, alert.campaignId, 24 * 60 * 60 * 1000);
       current = metrics[alert.metric as keyof MetricSet] ?? 0;
     } catch (e) {
       console.error('[AlertChecker] metric computation failed', alert.id, e);
