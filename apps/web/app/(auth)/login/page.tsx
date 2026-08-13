@@ -116,7 +116,7 @@ export default function LoginPage() {
                 <input type="checkbox" className="w-4 h-4 rounded border-[#e2e8f0] bg-[#f8fafc] accent-[#6366f1]" />
                 <span className="text-xs text-[#64748b]">Remember me</span>
               </label>
-              <a href="#" className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors">
+              <a href="mailto:info@digitaladexpert.de?subject=Password%20reset" className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors">
                 Forgot password?
               </a>
             </div>
@@ -160,9 +160,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center gap-6 mt-6 text-xs text-[#94a3b8]">
           <span>🔒 256-bit SSL</span>
           <span>•</span>
-          <span>GDPR Compliant</span>
-          <span>•</span>
-          <span>99.9% Uptime</span>
+          <span>Self-hosted infrastructure</span>
         </div>
       </div>
     </div>

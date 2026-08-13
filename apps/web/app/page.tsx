@@ -32,7 +32,6 @@ import {
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Docs', href: '#' },
 ];
 
 const FEATURES = [
@@ -944,7 +943,6 @@ export default function LandingPage() {
             <div className="flex items-center gap-8 text-sm text-[#94a3b8]">
               <Link href="/privacy" className="hover:text-[#64748b] transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-[#64748b] transition-colors">Terms of Service</Link>
-              <a href="#" className="hover:text-[#64748b] transition-colors">Documentation</a>
               <a href="mailto:info@digitaladexpert.de" className="hover:text-[#64748b] transition-colors">Support</a>
             </div>
 
