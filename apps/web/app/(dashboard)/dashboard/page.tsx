@@ -128,6 +128,9 @@ interface DashboardData {
 // Constants
 // ─────────────────────────────────────────────
 
+const AUTO_REFRESH_KEY = 'adflow_dashboard_autorefresh';
+const AUTO_REFRESH_INTERVAL_MS = 30000;
+
 const PRESETS = ['today', 'yesterday', 'last7d', 'last30d', 'thisMonth'] as const;
 type Preset = typeof PRESETS[number];
 
@@ -317,12 +320,13 @@ const tdStyle: React.CSSProperties = {
 interface MetricCardProps {
   label: string;
   value: string;
+  valueColor?: string;
   sub?: string;
   subLabel?: string;
   subColor?: string;
 }
 
-function MetricCard({ label, value, sub, subLabel, subColor }: MetricCardProps) {
+function MetricCard({ label, value, valueColor, sub, subLabel, subColor }: MetricCardProps) {
   return (
     <div
       style={{
@@ -337,7 +341,7 @@ function MetricCard({ label, value, sub, subLabel, subColor }: MetricCardProps) 
       <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
         {label}
       </div>
-      <div style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: '22px', fontWeight: 700, color: valueColor ?? '#0f172a', lineHeight: 1 }}>{value}</div>
       {sub && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: subColor ?? '#64748b' }}>
           {subLabel && <span style={{ color: '#94a3b8' }}>{subLabel}: </span>}
@@ -363,6 +367,8 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   // Chart state
   const [activeMetrics, setActiveMetrics] = useState<string[]>(['clicks', 'conversions', 'revenue']);
@@ -388,22 +394,61 @@ export default function DashboardPage() {
     return `preset=${preset}`;
   }, [isCustom, customFrom, customTo, preset]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const result = await api.get<DashboardData>(`/api/analytics/dashboard?${buildParams()}`);
       setData(result);
+      setLastUpdated(new Date());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [buildParams]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Restore auto-refresh preference
+  useEffect(() => {
+    setAutoRefresh(localStorage.getItem(AUTO_REFRESH_KEY) === '1');
+  }, []);
+
+  function toggleAutoRefresh() {
+    setAutoRefresh((prev) => {
+      const next = !prev;
+      localStorage.setItem(AUTO_REFRESH_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
+
+  // Poll silently in the background while auto-refresh is on
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => {
+      fetchData(true);
+    }, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [autoRefresh, fetchData]);
+
+  function timeAgoLabel(date: Date | null): string {
+    if (!date) return '';
+    const secs = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (secs < 5) return 'just now';
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    return `${mins}m ago`;
+  }
+
+  // Force a re-render every few seconds so the "updated Xs ago" label stays fresh
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
 
   // ── Close export dropdown on outside click ──
 
@@ -476,6 +521,7 @@ export default function DashboardPage() {
 
   const roiLabel = ov?.roi != null ? fmtPct(ov.roi) : '—';
   const profitColor = ov ? colorProfit(ov.profit) : '#64748b';
+  const roiColor = ov?.roi != null ? colorProfit(ov.roi) : '#64748b';
 
   // ── Render ──────────────────────────────────
 
@@ -584,8 +630,42 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Last updated */}
+          {lastUpdated && (
+            <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+              Updated {timeAgoLabel(lastUpdated)}
+            </span>
+          )}
+
+          {/* Auto-refresh toggle */}
+          <button
+            onClick={toggleAutoRefresh}
+            title={autoRefresh ? 'Auto-refresh on (every 30s) — click to disable' : 'Enable auto-refresh (every 30s)'}
+            style={{
+              ...presetBtnBase,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: autoRefresh ? '#10b981' : '#ffffff',
+              color: autoRefresh ? '#fff' : '#64748b',
+              border: `1px solid ${autoRefresh ? '#10b981' : '#e2e8f0'}`,
+            }}
+          >
+            <span
+              className={autoRefresh ? 'animate-pulse-slow' : undefined}
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: autoRefresh ? '#fff' : '#94a3b8',
+              }}
+            />
+            {autoRefresh ? 'Live' : 'Auto-refresh'}
+          </button>
+
           {/* Refresh */}
-          <button onClick={fetchData} style={iconBtnStyle} title="Refresh" disabled={loading}>
+          <button onClick={() => fetchData()} style={iconBtnStyle} title="Refresh" disabled={loading}>
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
@@ -624,13 +704,14 @@ export default function DashboardPage() {
         <MetricCard
           label="Profit"
           value={loading ? '—' : fmtMoney(ov?.profit ?? 0)}
-          subColor={profitColor}
+          valueColor={loading ? undefined : profitColor}
         />
         <MetricCard
           label="ROI"
           value={loading ? '—' : roiLabel}
+          valueColor={loading ? undefined : roiColor}
           sub={loading ? undefined : ov?.roas != null ? `${ov.roas.toFixed(2)}x ROAS` : undefined}
-          subColor="#64748b"
+          subColor={loading ? undefined : ov?.roas != null ? colorProfit(ov.roas - 1) : '#64748b'}
         />
       </div>
 

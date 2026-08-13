@@ -2,12 +2,13 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { prisma } from '../config/database';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 
 const createSchema = z.object({
   name:        z.string().min(1),
-  platform:    z.enum(['meta', 'google', 'tiktok', 'native', 'push', 'other']).default('other'),
+  platform:    z.enum(['meta', 'google', 'tiktok', 'snapchat', 'native', 'push', 'other']).default('other'),
   postbackUrl: z.string().url().optional().or(z.literal('')),
   costModel:   z.enum(['CPC', 'CPM', 'AUTO', 'FIXED']).default('CPC'),
   tags:        z.array(z.string()).default([]),
@@ -15,6 +16,8 @@ const createSchema = z.object({
   pixelId:     z.string().optional().or(z.literal('')),
   accessToken: z.string().optional().or(z.literal('')),
   fbEventName: z.enum(['Purchase', 'Lead', 'CompleteRegistration', 'ViewContent', 'AddToCart', 'InitiateCheckout', 'Subscribe']).optional(),
+  // TikTok/Snapchat CAPI event name (their own standard-event naming, reuses pixelId/accessToken above)
+  eventName:   z.string().max(100).optional().or(z.literal('')),
 });
 
 const updateSchema = createSchema.partial().extend({
@@ -25,8 +28,9 @@ router.use(authenticate);
 
 router.get('/', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const sources = await prisma.trafficSource.findMany({
-      where: { userId: (req as AuthRequest).user!.id },
+      where: { userId: { in: teamIds } },
       orderBy: { createdAt: 'desc' },
       include: { _count: { select: { campaigns: true } } },
     });
@@ -43,8 +47,9 @@ router.get('/', async (req, res: Response) => {
 
 router.get('/:id', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const s = await prisma.trafficSource.findFirst({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
     });
     if (!s) return res.status(404).json({ error: 'Not found' });
     res.json({ ...s, accessToken: s.accessToken ? '••••••' + s.accessToken.slice(-6) : null });
@@ -65,6 +70,7 @@ router.post('/', async (req, res: Response) => {
         pixelId:     parsed.data.pixelId || null,
         accessToken: parsed.data.accessToken || null,
         fbEventName: parsed.data.fbEventName || null,
+        eventName:   parsed.data.eventName || null,
       },
     });
     res.status(201).json(source);
@@ -84,9 +90,11 @@ router.patch('/:id', async (req, res: Response) => {
     }
     if ("postbackUrl" in parsed.data) data.postbackUrl = parsed.data.postbackUrl || null;
     if (data.pixelId === '') data.pixelId = null;
+    if (data.eventName === '') data.eventName = null;
 
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     const result = await prisma.trafficSource.updateMany({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
       data,
     });
     if (result.count === 0) return res.status(404).json({ error: 'Not found' });
@@ -99,8 +107,9 @@ router.patch('/:id', async (req, res: Response) => {
 
 router.delete('/:id', async (req, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds((req as AuthRequest).user!.id);
     await prisma.trafficSource.deleteMany({
-      where: { id: req.params.id, userId: (req as AuthRequest).user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
     });
     res.json({ ok: true });
   } catch {

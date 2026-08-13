@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import { getTeamUserIds } from './team';
 
 async function fireWebhook(url: string, payload: Record<string, unknown>): Promise<void> {
   try {
@@ -13,53 +14,85 @@ async function fireWebhook(url: string, payload: Record<string, unknown>): Promi
   }
 }
 
+interface MetricSet {
+  clicks: number;
+  conversions: number;
+  revenue: number;
+  bot_rate: number;
+  cpa: number;
+}
+
+async function computeMetrics(teamIds: string[], campaignId: string | null, sinceMs: number): Promise<MetricSet> {
+  const since = new Date(Date.now() - sinceMs);
+  const clickWhere = campaignId
+    ? { userId: { in: teamIds }, campaignId, timestamp: { gte: since } }
+    : { userId: { in: teamIds }, timestamp: { gte: since } };
+  const convWhere = campaignId
+    ? { userId: { in: teamIds }, timestamp: { gte: since }, click: { campaignId } }
+    : { userId: { in: teamIds }, timestamp: { gte: since } };
+
+  const [clicks, botClicks, conversions, conversionValues, spend] = await Promise.all([
+    prisma.click.count({ where: clickWhere }),
+    prisma.click.count({ where: { ...clickWhere, isBot: true } }),
+    prisma.conversion.count({ where: convWhere }),
+    prisma.conversion.findMany({ where: convWhere, select: { value: true } }),
+    campaignId
+      ? prisma.campaign.findUnique({ where: { id: campaignId }, select: { cost: true } }).then((c) => c?.cost ?? 0)
+      : prisma.campaign.aggregate({ where: { userId: { in: teamIds } }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0),
+  ]);
+
+  const revenue = conversionValues.reduce((s, c) => s + c.value, 0);
+  const botRate = clicks > 0 ? (botClicks / clicks) * 100 : 0;
+  const cpa = conversions > 0 && spend > 0 ? spend / conversions : 0;
+
+  return { clicks, conversions, revenue, bot_rate: botRate, cpa };
+}
+
 export async function checkAllAlerts(): Promise<void> {
   const now = new Date();
-  const ago24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const ago30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  // Get all enabled alerts grouped by user
-  const alerts = await prisma.alert.findMany({ where: { enabled: true } });
+  const alerts = await prisma.alert.findMany({
+    where: { enabled: true },
+    include: { campaign: { select: { id: true, name: true, status: true } } },
+  });
   if (alerts.length === 0) return;
 
-  // Get unique userIds
-  const userIds = [...new Set(alerts.map((a) => a.userId))];
+  // Cache team-id lookups per owner within this run to avoid redundant queries.
+  const teamCache = new Map<string, Promise<string[]>>();
+  function teamIdsFor(userId: string): Promise<string[]> {
+    let cached = teamCache.get(userId);
+    if (!cached) {
+      cached = getTeamUserIds(userId);
+      teamCache.set(userId, cached);
+    }
+    return cached;
+  }
 
-  for (const userId of userIds) {
-    const userAlerts = alerts.filter((a) => a.userId === userId);
+  for (const alert of alerts) {
+    let current: number;
+    try {
+      const teamIds = await teamIdsFor(alert.userId);
+      const metrics = await computeMetrics(teamIds, alert.campaignId, 24 * 60 * 60 * 1000);
+      current = metrics[alert.metric as keyof MetricSet] ?? 0;
+    } catch (e) {
+      console.error('[AlertChecker] metric computation failed', alert.id, e);
+      continue;
+    }
 
-    const [clicks24h, botClicks24h, conversions24h, conversionValues24h] = await Promise.all([
-      prisma.click.count({ where: { userId, timestamp: { gte: ago24h } } }),
-      prisma.click.count({ where: { userId, isBot: true, timestamp: { gte: ago24h } } }),
-      prisma.conversion.count({ where: { userId, timestamp: { gte: ago24h } } }),
-      prisma.conversion.findMany({ where: { userId, timestamp: { gte: ago24h } }, select: { value: true } }),
-    ]);
+    const nowTriggered = alert.condition === 'above' ? current > alert.threshold : current < alert.threshold;
+    const wasTriggered = alert.triggered;
 
-    const revenue24h = conversionValues24h.reduce((s, c) => s + c.value, 0);
-    const botRate = clicks24h > 0 ? (botClicks24h / clicks24h) * 100 : 0;
-    const totalSpend = await prisma.campaign.aggregate({ where: { userId }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0);
-    const cpa = conversions24h > 0 && totalSpend > 0 ? totalSpend / conversions24h : 0;
+    await prisma.alert.update({
+      where: { id: alert.id },
+      data: { triggered: nowTriggered, lastChecked: now },
+    });
 
-    const currentValues: Record<string, number> = {
-      clicks: clicks24h,
-      conversions: conversions24h,
-      revenue: revenue24h,
-      bot_rate: botRate,
-      cpa,
-    };
+    // Only act on the not-triggered → triggered transition, so we don't spam
+    // webhooks/notifications/pauses on every 5-minute check while an alert
+    // stays in a triggered state.
+    if (nowTriggered && !wasTriggered) {
+      const scopeLabel = alert.campaign ? ` (${alert.campaign.name})` : '';
 
-    for (const alert of userAlerts) {
-      const current = currentValues[alert.metric] ?? 0;
-      const nowTriggered = alert.condition === 'above' ? current > alert.threshold : current < alert.threshold;
-      const wasTriggered = alert.triggered;
-
-      await prisma.alert.update({
-        where: { id: alert.id },
-        data: { triggered: nowTriggered, lastChecked: now },
-      });
-
-      // Fire webhook only on state change: not-triggered → triggered
-      if (nowTriggered && !wasTriggered && alert.webhookUrl) {
+      if (alert.webhookUrl) {
         await fireWebhook(alert.webhookUrl, {
           alert: {
             id: alert.id,
@@ -68,9 +101,31 @@ export async function checkAllAlerts(): Promise<void> {
             condition: alert.condition,
             threshold: alert.threshold,
             currentValue: current,
+            campaignId: alert.campaignId,
           },
           triggeredAt: now.toISOString(),
         });
+      }
+
+      await prisma.notification.create({
+        data: {
+          userId: alert.userId,
+          type: 'alert_triggered',
+          title: `Alert triggered: ${alert.name}${scopeLabel}`,
+          message: `${alert.metric} is ${alert.condition === 'above' ? 'above' : 'below'} ${alert.threshold} (current: ${Math.round(current * 100) / 100}).`,
+        },
+      }).catch(() => {});
+
+      if (alert.action === 'pause_campaign' && alert.campaignId && alert.campaign?.status === 'ACTIVE') {
+        await prisma.campaign.update({ where: { id: alert.campaignId }, data: { status: 'PAUSED' } }).catch(() => {});
+        await prisma.notification.create({
+          data: {
+            userId: alert.userId,
+            type: 'campaign_auto_paused',
+            title: `Campaign auto-paused: ${alert.campaign.name}`,
+            message: `AdFlow stopped forwarding clicks for this campaign because "${alert.name}" triggered. Re-activate it from the Campaigns page when ready.`,
+          },
+        }).catch(() => {});
       }
     }
   }

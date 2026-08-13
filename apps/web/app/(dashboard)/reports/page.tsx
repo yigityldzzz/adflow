@@ -286,7 +286,10 @@ export default function ReportsPage() {
                     <td className="px-5 py-3.5 text-sm font-semibold text-[#10b981]">
                       {c.revenue > 0 ? fmtMoney(c.revenue) : '—'}
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-[#64748b]">
+                    <td
+                      className="px-5 py-3.5 text-sm font-semibold"
+                      style={{ color: c.roas == null ? '#64748b' : c.roas >= 1 ? '#10b981' : '#ef4444' }}
+                    >
                       {c.roas != null ? `${c.roas.toFixed(2)}x` : '—'}
                     </td>
                     <td className="px-5 py-3.5 text-sm text-[#64748b]">

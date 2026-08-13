@@ -46,6 +46,8 @@ interface Campaign {
   flowId?: string;
   flow?: { id: string; name: string } | null;
   stats?: CampaignStats;
+  externalCampaignId?: string | null;
+  costSyncedAt?: string | null;
   createdAt: string;
 }
 
@@ -91,10 +93,14 @@ export default function CampaignsPage() {
   const [formError, setFormError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editCampaign, setEditCampaign] = useState<Campaign | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '', budget: '', cost: '', trafficSourceId: '', flowId: '', status: 'ACTIVE' });
+  const [editForm, setEditForm] = useState({ name: '', description: '', budget: '', cost: '', trafficSourceId: '', flowId: '', status: 'ACTIVE', externalCampaignId: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [adAccounts, setAdAccounts] = useState<{ id: string; accountName: string | null; accountId: string }[]>([]);
+  const [selectedAdAccount, setSelectedAdAccount] = useState('');
+  const [metaCampaigns, setMetaCampaigns] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [loadingMetaCampaigns, setLoadingMetaCampaigns] = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -107,6 +113,12 @@ export default function CampaignsPage() {
       setTrafficSources(srcRes.trafficSources ?? []);
       const flowRes = await api.get<{ flows: Flow[] }>('/api/flows');
       setFlows(flowRes.flows ?? []);
+      try {
+        const adAccRes = await api.get<{ connections: { id: string; accountName: string | null; accountId: string }[] }>('/api/ad-accounts');
+        setAdAccounts(adAccRes.connections ?? []);
+      } catch {
+        // non-critical — ad account linking is optional
+      }
     } catch {
       toast({ type: 'error', title: 'Failed to load campaigns' });
     } finally {
@@ -169,8 +181,26 @@ export default function CampaignsPage() {
       trafficSourceId: camp.trafficSourceId ?? '',
       flowId: camp.flowId ?? '',
       status: camp.status,
+      externalCampaignId: camp.externalCampaignId ?? '',
     });
+    setSelectedAdAccount('');
+    setMetaCampaigns([]);
   };
+
+  async function loadMetaCampaigns(adAccountConnectionId: string) {
+    setSelectedAdAccount(adAccountConnectionId);
+    setMetaCampaigns([]);
+    if (!adAccountConnectionId) return;
+    setLoadingMetaCampaigns(true);
+    try {
+      const res = await api.get<{ campaigns: { id: string; name: string; status: string }[] }>(`/api/ad-accounts/${adAccountConnectionId}/campaigns`);
+      setMetaCampaigns(res.campaigns ?? []);
+    } catch (err) {
+      toast({ type: 'error', title: err instanceof Error ? err.message : 'Failed to load Meta campaigns' });
+    } finally {
+      setLoadingMetaCampaigns(false);
+    }
+  }
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,6 +216,7 @@ export default function CampaignsPage() {
         trafficSourceId: editForm.trafficSourceId || undefined,
         flowId: editForm.flowId || undefined,
         status: editForm.status,
+        externalCampaignId: editForm.externalCampaignId || null,
       });
       toast({ type: 'success', title: 'Campaign updated!' });
       setEditCampaign(null);
@@ -339,7 +370,17 @@ export default function CampaignsPage() {
                     <TrendingUp className="w-3 h-3" />
                     <span className="text-[10px] uppercase tracking-wide">ROAS</span>
                   </div>
-                  <p className="text-sm font-bold text-[#0f172a]">
+                  <p
+                    className="text-sm font-bold"
+                    style={{
+                      color:
+                        campaign.stats?.roas == null
+                          ? '#0f172a'
+                          : campaign.stats.roas >= 1
+                          ? '#10b981'
+                          : '#ef4444',
+                    }}
+                  >
                     {campaign.stats?.roas ? `${campaign.stats.roas.toFixed(2)}x` : '—'}
                   </p>
                 </div>
@@ -580,11 +621,61 @@ export default function CampaignsPage() {
                     placeholder="0" className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#64748b] mb-1.5">Ad Spend (USD)</label>
+                  <label className="block text-xs font-medium text-[#64748b] mb-1.5">
+                    Ad Spend (USD) {editForm.externalCampaignId && <span className="text-[#10b981] font-normal">(auto-synced)</span>}
+                  </label>
                   <input type="number" min="0" value={editForm.cost} onChange={(e) => setEditForm((p) => ({ ...p, cost: e.target.value }))}
-                    placeholder="0" className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
+                    disabled={!!editForm.externalCampaignId}
+                    placeholder="0" className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors disabled:opacity-60" />
                 </div>
               </div>
+
+              {adAccounts.length > 0 && (
+                <div className="p-3 bg-[#1877F2]/5 border border-[#1877F2]/20 rounded-xl space-y-3">
+                  <p className="text-xs font-semibold text-[#0f172a] flex items-center gap-1.5">
+                    <span>📘</span> Link to Meta Campaign
+                  </p>
+                  {editForm.externalCampaignId ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-[#64748b] font-mono truncate">{editForm.externalCampaignId}</p>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm((p) => ({ ...p, externalCampaignId: '' }))}
+                        className="flex-shrink-0 text-[10px] font-semibold text-[#ef4444] hover:underline"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedAdAccount}
+                        onChange={(e) => loadMetaCampaigns(e.target.value)}
+                        className="w-full bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 text-xs text-[#0f172a] focus:outline-none focus:border-[#1877F2] transition-colors"
+                      >
+                        <option value="">Select ad account…</option>
+                        {adAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>{a.accountName ?? a.accountId}</option>
+                        ))}
+                      </select>
+                      {loadingMetaCampaigns && <p className="text-[11px] text-[#94a3b8]">Loading campaigns from Meta…</p>}
+                      {metaCampaigns.length > 0 && (
+                        <select
+                          value=""
+                          onChange={(e) => setEditForm((p) => ({ ...p, externalCampaignId: e.target.value }))}
+                          className="w-full bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 text-xs text-[#0f172a] focus:outline-none focus:border-[#1877F2] transition-colors"
+                        >
+                          <option value="">Select Meta campaign…</option>
+                          {metaCampaigns.map((mc) => (
+                            <option key={mc.id} value={mc.id}>{mc.name} ({mc.status})</option>
+                          ))}
+                        </select>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-medium text-[#64748b] mb-1.5">Traffic Source</label>
                 <select value={editForm.trafficSourceId} onChange={(e) => setEditForm((p) => ({ ...p, trafficSourceId: e.target.value }))}

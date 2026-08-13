@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { generateInsights } from '../services/insights';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 router.use(authenticate);
@@ -35,7 +36,7 @@ function parseDateRange(query: Record<string, string | undefined>): { start: Dat
 
 // ── GET /api/analytics/dashboard ─────────────────────────────────────────────
 router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const { start, end } = parseDateRange(req.query as Record<string, string>);
   const duration = end.getTime() - start.getTime();
   const prevStart = new Date(start.getTime() - duration);
@@ -43,26 +44,26 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
 
   const [clicks, prevClicks, conversions, prevConversions, campaigns] = await Promise.all([
     prisma.click.findMany({
-      where: { userId, isBot: false, timestamp: { gte: start, lte: end } },
+      where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: start, lte: end } },
       select: {
         timestamp: true, visitorId: true, country: true, countryCode: true,
         utmSource: true, device: true, os: true, browser: true, isSuspicious: true,
       },
     }),
-    prisma.click.count({ where: { userId, isBot: false, timestamp: { gte: prevStart, lte: prevEnd } } }),
+    prisma.click.count({ where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: prevStart, lte: prevEnd } } }),
     prisma.conversion.findMany({
-      where: { userId, timestamp: { gte: start, lte: end } },
+      where: { userId: { in: teamIds }, timestamp: { gte: start, lte: end } },
       select: {
         value: true, timestamp: true,
         click: { select: { country: true, countryCode: true, utmSource: true, device: true, os: true } },
       },
     }),
     prisma.conversion.aggregate({
-      where: { userId, timestamp: { gte: prevStart, lte: prevEnd } },
+      where: { userId: { in: teamIds }, timestamp: { gte: prevStart, lte: prevEnd } },
       _count: true, _sum: { value: true },
     }),
     prisma.campaign.findMany({
-      where: { userId },
+      where: { userId: { in: teamIds } },
       select: {
         id: true, name: true, source: true, status: true, cost: true,
         trafficSourceId: true,
@@ -294,13 +295,13 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
 
 // ── GET /api/analytics/export ────────────────────────────────────────────────
 router.get('/export', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const { start, end } = parseDateRange(req.query as Record<string, string>);
   const type = (req.query.type as string) ?? 'clicks';
 
   if (type === 'clicks') {
     const clicks = await prisma.click.findMany({
-      where: { userId, isBot: false, timestamp: { gte: start, lte: end } },
+      where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: start, lte: end } },
       select: {
         id: true, timestamp: true, country: true, device: true, os: true, browser: true,
         utmSource: true, utmMedium: true, utmCampaign: true, isSuspicious: true, ip: true,
@@ -324,7 +325,7 @@ router.get('/export', async (req: AuthRequest, res: Response): Promise<void> => 
     res.send(csv);
   } else if (type === 'conversions') {
     const conversions = await prisma.conversion.findMany({
-      where: { userId, timestamp: { gte: start, lte: end } },
+      where: { userId: { in: teamIds }, timestamp: { gte: start, lte: end } },
       select: {
         id: true, timestamp: true, type: true, value: true, currency: true,
         link: { select: { name: true } },
@@ -350,26 +351,26 @@ router.get('/export', async (req: AuthRequest, res: Response): Promise<void> => 
 
 // ── Legacy endpoints (backward compat) ──────────────────────────────────────
 router.get('/overview', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30*24*60*60*1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60*24*60*60*1000);
   const [totalClicks, botClicks, totalConversions, conversionValues, prevClicks, prevConversions, prevValues] = await Promise.all([
-    prisma.click.count({ where: { userId, isBot: false, timestamp: { gte: thirtyDaysAgo } } }),
-    prisma.click.count({ where: { userId, isBot: true, timestamp: { gte: thirtyDaysAgo } } }),
-    prisma.conversion.count({ where: { userId, timestamp: { gte: thirtyDaysAgo } } }),
-    prisma.conversion.findMany({ where: { userId, timestamp: { gte: thirtyDaysAgo } }, select: { value: true } }),
-    prisma.click.count({ where: { userId, isBot: false, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
-    prisma.conversion.count({ where: { userId, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
-    prisma.conversion.findMany({ where: { userId, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }, select: { value: true } }),
+    prisma.click.count({ where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: thirtyDaysAgo } } }),
+    prisma.click.count({ where: { userId: { in: teamIds }, isBot: true, timestamp: { gte: thirtyDaysAgo } } }),
+    prisma.conversion.count({ where: { userId: { in: teamIds }, timestamp: { gte: thirtyDaysAgo } } }),
+    prisma.conversion.findMany({ where: { userId: { in: teamIds }, timestamp: { gte: thirtyDaysAgo } }, select: { value: true } }),
+    prisma.click.count({ where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.conversion.count({ where: { userId: { in: teamIds }, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.conversion.findMany({ where: { userId: { in: teamIds }, timestamp: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }, select: { value: true } }),
   ]);
-  const uniqueVisitorsResult = await prisma.click.groupBy({ by: ['visitorId'], where: { userId, isBot: false, timestamp: { gte: thirtyDaysAgo } } });
+  const uniqueVisitorsResult = await prisma.click.groupBy({ by: ['visitorId'], where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: thirtyDaysAgo } } });
   const revenue = conversionValues.reduce((s, c) => s + c.value, 0);
   const prevRevenue = prevValues.reduce((s, c) => s + c.value, 0);
-  const totalSpend = await prisma.campaign.aggregate({ where: { userId }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0);
+  const totalSpend = await prisma.campaign.aggregate({ where: { userId: { in: teamIds } }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0);
   const totalAllClicks = totalClicks + botClicks;
   const botRate = totalAllClicks > 0 ? Math.round((botClicks / totalAllClicks) * 100 * 10) / 10 : 0;
-  const insights = await generateInsights(userId);
+  const insights = await generateInsights(teamIds);
   res.json({
     overview: { totalClicks, uniqueVisitors: uniqueVisitorsResult.length, totalConversions, revenue: Math.round(revenue*100)/100, avgCPA: totalConversions>0&&totalSpend>0?Math.round((totalSpend/totalConversions)*100)/100:null, avgROAS: totalSpend>0&&revenue>0?Math.round((revenue/totalSpend)*100)/100:null, botRate, botClicks },
     changes: { clicks: pctChange(totalClicks, prevClicks), conversions: pctChange(totalConversions, prevConversions), revenue: pctChange(revenue, prevRevenue) },
@@ -381,12 +382,12 @@ router.get('/timeline', async (req: AuthRequest, res: Response): Promise<void> =
   const parse = z.object({ days: z.string().optional().transform((v) => v ? parseInt(v,10) : 30).pipe(z.number().min(1).max(90)) }).safeParse(req.query);
   if (!parse.success) { res.status(400).json({ error: 'Invalid days parameter' }); return; }
   const { days } = parse.data;
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const now = new Date();
   const start = new Date(now.getTime() - days*24*60*60*1000);
   const [clicks, conversions] = await Promise.all([
-    prisma.click.findMany({ where: { userId, isBot: false, timestamp: { gte: start } }, select: { timestamp: true, visitorId: true } }),
-    prisma.conversion.findMany({ where: { userId, timestamp: { gte: start } }, select: { timestamp: true, value: true } }),
+    prisma.click.findMany({ where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: start } }, select: { timestamp: true, visitorId: true } }),
+    prisma.conversion.findMany({ where: { userId: { in: teamIds }, timestamp: { gte: start } }, select: { timestamp: true, value: true } }),
   ]);
   const clickMap=new Map<string,number>(), uniqueMap=new Map<string,Set<string>>(), convMap=new Map<string,number>(), revenueMap=new Map<string,number>();
   for (const click of clicks) {
@@ -410,9 +411,9 @@ router.get('/timeline', async (req: AuthRequest, res: Response): Promise<void> =
 });
 
 router.get('/by-campaign', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const campaigns = await prisma.campaign.findMany({
-    where: { userId },
+    where: { userId: { in: teamIds } },
     include: { _count: { select: { clicks: true } }, links: { include: { conversions: { select: { value: true, type: true } } } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -426,20 +427,20 @@ router.get('/by-campaign', async (req: AuthRequest, res: Response): Promise<void
 });
 
 router.get('/top-countries', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
-  const grouped = await prisma.click.groupBy({ by: ['countryCode','country'], where: { userId, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 10 });
+  const teamIds = await getTeamUserIds(req.user!.id);
+  const grouped = await prisma.click.groupBy({ by: ['countryCode','country'], where: { userId: { in: teamIds }, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 10 });
   res.json({ countries: grouped.map((g) => ({ countryCode: g.countryCode, country: g.country, clicks: g._count.id })) });
 });
 
 router.get('/devices', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
-  const grouped = await prisma.click.groupBy({ by: ['device'], where: { userId, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } } });
+  const teamIds = await getTeamUserIds(req.user!.id);
+  const grouped = await prisma.click.groupBy({ by: ['device'], where: { userId: { in: teamIds }, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } } });
   const total = grouped.reduce((s, g) => s + g._count.id, 0);
   res.json({ devices: grouped.map((g) => ({ device: g.device??'unknown', clicks: g._count.id, percentage: total>0?Math.round((g._count.id/total)*100*10)/10:0 })), total });
 });
 
 router.get('/recent-clicks', async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const limit  = Math.min(parseInt(String(req.query.limit  ?? '50'), 10), 200);
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'),  10), 0);
   const campaignId  = req.query.campaignId  ? String(req.query.campaignId)  : undefined;
@@ -452,7 +453,7 @@ router.get('/recent-clicks', async (req: AuthRequest, res: Response): Promise<vo
   const { start, end } = parseDateRange(req.query as Record<string, string>);
 
   const where: Record<string, unknown> = {
-    userId,
+    userId: { in: teamIds },
     timestamp: { gte: start, lte: end },
     ...(campaignId && { campaignId }),
     ...(linkId     && { linkId }),
@@ -489,7 +490,8 @@ router.get('/recent-clicks', async (req: AuthRequest, res: Response): Promise<vo
 });
 
 router.get('/insights', async (req: AuthRequest, res: Response): Promise<void> => {
-  const insights = await generateInsights(req.user!.id);
+  const teamIds = await getTeamUserIds(req.user!.id);
+  const insights = await generateInsights(teamIds);
   res.json({ insights });
 });
 

@@ -5,6 +5,10 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ConversionType } from '@prisma/client';
 import { sendMetaCapiEvent } from '../services/metaCapi';
+import { sendTikTokEvent } from '../services/tiktokCapi';
+import { sendSnapEvent } from '../services/snapCapi';
+import { fireGenericPostback } from '../services/postback';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 
@@ -75,6 +79,136 @@ async function fireMetaCapi(conversionId: string, clickId: string | null, linkId
   else console.log('[CAPI] OK', conversionId, fbclid);
 }
 
+// Default standard-event names per platform when the user hasn't configured
+// a custom one on the traffic source. Each ad platform has its own naming
+// convention for the same concept (e.g. a purchase).
+const TIKTOK_EVENT_DEFAULTS: Record<string, string> = {
+  PURCHASE: 'CompletePayment',
+  LEAD: 'SubmitForm',
+  SIGNUP: 'CompleteRegistration',
+  ADD_TO_CART: 'AddToCart',
+  CUSTOM: 'CompletePayment',
+};
+
+const SNAP_EVENT_DEFAULTS: Record<string, string> = {
+  PURCHASE: 'PURCHASE',
+  LEAD: 'SIGN_UP',
+  SIGNUP: 'SIGN_UP',
+  ADD_TO_CART: 'ADD_CART',
+  CUSTOM: 'PURCHASE',
+};
+
+async function fireTikTokCapi(conversionId: string, clickId: string | null, linkId: string, value: number, currency: string, eventType: string, txid?: string | null): Promise<void> {
+  const link = await prisma.trackingLink.findUnique({
+    where: { id: linkId },
+    include: { campaign: { include: { trafficSource: true } } },
+  });
+  const ts = link?.campaign?.trafficSource;
+  if (!ts || ts.platform !== 'tiktok' || !ts.pixelId || !ts.accessToken) return;
+
+  let ttclid: string | null = null;
+  let ip: string | null = null;
+  let userAgent: string | null = null;
+
+  if (clickId) {
+    const click = await prisma.click.findUnique({
+      where: { id: clickId },
+      select: { ttclid: true, ip: true, userAgent: true },
+    });
+    if (click) { ttclid = click.ttclid; ip = click.ip; userAgent = click.userAgent; }
+  }
+  if (!ttclid) return;
+
+  const result = await sendTikTokEvent({
+    pixelId: ts.pixelId,
+    accessToken: ts.accessToken,
+    eventName: ts.eventName || TIKTOK_EVENT_DEFAULTS[eventType] || 'CompletePayment',
+    eventId: txid || conversionId,
+    eventTime: Math.floor(Date.now() / 1000),
+    ttclid, ip, userAgent, value, currency,
+    eventSourceUrl: link.destinationUrl || undefined,
+  });
+
+  if (!result.success) console.error('[TikTok CAPI]', result.error, conversionId);
+  else console.log('[TikTok CAPI] OK', conversionId, ttclid);
+}
+
+async function fireSnapCapi(conversionId: string, clickId: string | null, linkId: string, value: number, currency: string, eventType: string, txid?: string | null): Promise<void> {
+  const link = await prisma.trackingLink.findUnique({
+    where: { id: linkId },
+    include: { campaign: { include: { trafficSource: true } } },
+  });
+  const ts = link?.campaign?.trafficSource;
+  if (!ts || ts.platform !== 'snapchat' || !ts.pixelId || !ts.accessToken) return;
+
+  let sccid: string | null = null;
+  let ip: string | null = null;
+  let userAgent: string | null = null;
+
+  if (clickId) {
+    const click = await prisma.click.findUnique({
+      where: { id: clickId },
+      select: { sccid: true, ip: true, userAgent: true },
+    });
+    if (click) { sccid = click.sccid; ip = click.ip; userAgent = click.userAgent; }
+  }
+  if (!sccid) return;
+
+  const result = await sendSnapEvent({
+    pixelId: ts.pixelId,
+    accessToken: ts.accessToken,
+    eventName: ts.eventName || SNAP_EVENT_DEFAULTS[eventType] || 'PURCHASE',
+    eventId: txid || conversionId,
+    eventTime: Math.floor(Date.now() / 1000),
+    sccid, ip, userAgent, value, currency,
+    eventSourceUrl: link.destinationUrl || undefined,
+  });
+
+  if (!result.success) console.error('[Snap CAPI]', result.error, conversionId);
+  else console.log('[Snap CAPI] OK', conversionId, sccid);
+}
+
+// Fires an outbound postback to the traffic source's own postback URL (any
+// platform), substituting {clickid}, {cost}, {country}, etc. This is separate
+// from Meta CAPI — a traffic source can have either, both, or neither
+// configured.
+async function fireTrafficSourcePostback(
+  conversionId: string,
+  clickId: string | null,
+  linkId: string,
+  value: number
+): Promise<void> {
+  const link = await prisma.trackingLink.findUnique({
+    where: { id: linkId },
+    include: { campaign: { include: { trafficSource: true } } },
+  });
+  const ts = link?.campaign?.trafficSource;
+  if (!ts?.postbackUrl) return;
+
+  let click: { externalClickId: string | null; visitorId: string; ip: string | null; country: string | null; city: string | null; device: string | null; os: string | null; browser: string | null } | null = null;
+  if (clickId) {
+    click = await prisma.click.findUnique({
+      where: { id: clickId },
+      select: { externalClickId: true, visitorId: true, ip: true, country: true, city: true, device: true, os: true, browser: true },
+    });
+  }
+
+  await fireGenericPostback(ts.postbackUrl, {
+    clickId: click?.externalClickId || click?.visitorId || null,
+    campaignId: link?.campaign?.id ?? null,
+    campaignName: link?.campaign?.name ?? null,
+    device: click?.device ?? null,
+    os: click?.os ?? null,
+    browser: click?.browser ?? null,
+    country: click?.country ?? null,
+    city: click?.city ?? null,
+    ip: click?.ip ?? null,
+    value,
+  }).catch(() => {});
+
+  console.log('[Postback] fired', conversionId, ts.name);
+}
+
 async function handlePostback(req: Request, res: Response): Promise<void> {
   const parse = postbackSchema.safeParse({ ...req.query, ...req.body });
   if (!parse.success) { res.status(400).json({ error: parse.error.errors[0]?.message }); return; }
@@ -120,6 +254,9 @@ async function handlePostback(req: Request, res: Response): Promise<void> {
 
   res.json({ ok: true, conversionId: conversion.id });
   fireMetaCapi(conversion.id, clickId, link.id, value, currency, type, txid).catch(() => {});
+  fireTikTokCapi(conversion.id, clickId, link.id, value, currency, type, txid).catch(() => {});
+  fireSnapCapi(conversion.id, clickId, link.id, value, currency, type, txid).catch(() => {});
+  fireTrafficSourcePostback(conversion.id, clickId, link.id, value).catch(() => {});
 }
 
 router.get('/postback', handlePostback);
@@ -161,12 +298,15 @@ router.get('/pixel/:token', async (req: Request, res: Response): Promise<void> =
       data: { linkId: link.id, userId: link.userId, clickId, type: validType, value: isNaN(value) ? 0 : value, currency, txid },
     });
     fireMetaCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
+    fireTikTokCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
+    fireSnapCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
+    fireTrafficSourcePostback(conversion.id, clickId, link.id, value).catch(() => {});
   } catch { /* pixel already sent */ }
 });
 
 // GET /api/conversions — auth
 router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  const userId  = req.user!.id;
+  const teamIds = await getTeamUserIds(req.user!.id);
   const limit   = Math.min(parseInt(String(req.query.limit  ?? '50'), 10), 200);
   const offset  = Math.max(parseInt(String(req.query.offset ?? '0'),  10), 0);
 
@@ -187,7 +327,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
   }
 
   const where: Record<string, unknown> = {
-    userId,
+    userId: { in: teamIds },
     ...(dateFilter   && { timestamp: dateFilter }),
     ...(type         && { type }),
     ...(campaignId   && { link: { campaignId } }),

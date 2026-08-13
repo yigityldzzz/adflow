@@ -17,6 +17,8 @@ import {
   RefreshCw,
   ToggleLeft,
   ToggleRight,
+  PauseCircle,
+  Megaphone,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -32,6 +34,14 @@ interface Alert {
   lastChecked: string | null;
   createdAt: string;
   currentValue?: number;
+  campaignId?: string | null;
+  campaign?: { id: string; name: string; status: string } | null;
+  action?: 'notify' | 'pause_campaign';
+}
+
+interface CampaignOption {
+  id: string;
+  name: string;
 }
 
 const METRIC_CONFIG: Record<string, { label: string; unit: string; icon: React.ReactNode; description: string }> = {
@@ -66,8 +76,9 @@ export default function AlertsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', metric: 'bot_rate', condition: 'above', threshold: '', webhookUrl: '' });
+  const [form, setForm] = useState({ name: '', metric: 'bot_rate', condition: 'above', threshold: '', webhookUrl: '', campaignId: '', action: 'notify' as 'notify' | 'pause_campaign' });
   const [formError, setFormError] = useState('');
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -77,6 +88,15 @@ export default function AlertsPage() {
       toast({ type: 'error', title: 'Failed to load alerts' });
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      const res = await api.get<{ campaigns: CampaignOption[] }>('/api/campaigns');
+      setCampaigns((res as { campaigns: CampaignOption[] }).campaigns ?? []);
+    } catch {
+      // non-critical
     }
   }, []);
 
@@ -95,7 +115,8 @@ export default function AlertsPage() {
 
   useEffect(() => {
     fetchAlerts().then(() => evaluate(true));
-  }, [fetchAlerts, evaluate]);
+    fetchCampaigns();
+  }, [fetchAlerts, evaluate, fetchCampaigns]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,10 +130,12 @@ export default function AlertsPage() {
         condition: form.condition,
         threshold: parseFloat(form.threshold),
         webhookUrl: form.webhookUrl || undefined,
+        campaignId: form.campaignId || undefined,
+        action: form.campaignId ? form.action : 'notify',
       });
       toast({ type: 'success', title: 'Alert created' });
       setShowModal(false);
-      setForm({ name: '', metric: 'bot_rate', condition: 'above', threshold: '', webhookUrl: '' });
+      setForm({ name: '', metric: 'bot_rate', condition: 'above', threshold: '', webhookUrl: '', campaignId: '', action: 'notify' });
       fetchAlerts().then(() => evaluate(true));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to create alert');
@@ -266,7 +289,21 @@ export default function AlertsPage() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0f172a] truncate">{alert.name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-[#0f172a] truncate">{alert.name}</p>
+                      {alert.campaign && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#6366f1] bg-[#6366f1]/10 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                          <Megaphone className="w-2.5 h-2.5" />
+                          {alert.campaign.name}
+                        </span>
+                      )}
+                      {alert.action === 'pause_campaign' && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#ef4444] bg-[#ef4444]/10 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                          <PauseCircle className="w-2.5 h-2.5" />
+                          Auto-pause
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[#94a3b8]">
                       {cfg?.label} {alert.condition} {formatValue(alert.metric, alert.threshold)}
                       {alert.currentValue !== undefined && (
@@ -396,6 +433,60 @@ export default function AlertsPage() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Scope</label>
+                <select
+                  value={form.campaignId}
+                  onChange={(e) => setForm((p) => ({ ...p, campaignId: e.target.value, action: e.target.value ? p.action : 'notify' }))}
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors appearance-none"
+                >
+                  <option value="">Whole account</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>Campaign: {c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-[#94a3b8] mt-1">
+                  {form.campaignId ? 'Metric is measured for this campaign only.' : 'Metric is measured across all your campaigns.'}
+                </p>
+              </div>
+
+              {form.campaignId && (
+                <div>
+                  <label className="block text-xs font-medium text-[#64748b] mb-1.5">Action when triggered</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, action: 'notify' }))}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border transition-colors ${
+                        form.action === 'notify'
+                          ? 'bg-[#6366f1]/10 border-[#6366f1]/30 text-[#6366f1]'
+                          : 'bg-[#f8fafc] border-[#e2e8f0] text-[#64748b]'
+                      }`}
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      Notify only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, action: 'pause_campaign' }))}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border transition-colors ${
+                        form.action === 'pause_campaign'
+                          ? 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'
+                          : 'bg-[#f8fafc] border-[#e2e8f0] text-[#64748b]'
+                      }`}
+                    >
+                      <PauseCircle className="w-3.5 h-3.5" />
+                      Auto-pause
+                    </button>
+                  </div>
+                  {form.action === 'pause_campaign' && (
+                    <p className="text-[11px] text-[#ef4444] mt-1.5 leading-relaxed">
+                      ⚠️ This stops AdFlow from forwarding real clicks to your offer/lander for this campaign the moment the rule fires — it does not pause the ad itself on Meta/Google/etc, only AdFlow&apos;s own delivery. Use for real fraud/cost protection, not soft limits.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Preview */}
               <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3">

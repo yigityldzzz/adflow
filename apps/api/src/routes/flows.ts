@@ -2,19 +2,32 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 router.use(authenticate);
 
+const conditionCheckSchema = z.object({
+  condition: z.enum(['country', 'device', 'os', 'language']),
+  operator: z.enum(['is', 'is_not', 'contains']),
+  value: z.string(),
+});
+
 const ruleSchema = z.object({
-  condition: z.enum(['country', 'device', 'os', 'language', 'always']),
+  // New format — multiple conditions combined with AND logic.
+  conditions: z.array(conditionCheckSchema).optional(),
+  // Legacy format — single condition, kept for backward compatibility.
+  condition: z.enum(['country', 'device', 'os', 'language', 'always']).optional(),
   operator: z.enum(['is', 'is_not', 'contains']).optional(),
   value: z.string().optional(),
   weight: z.number().min(1).max(100).optional(),
   offerId: z.string().optional(),
   landerId: z.string().optional(),
   redirectUrl: z.string().optional(),
-});
+}).refine(
+  (r) => (r.conditions && r.conditions.length > 0) || r.condition,
+  { message: 'Either conditions[] or a legacy condition field is required' }
+);
 
 const pathSchema = z.object({
   weight: z.number().min(1).max(100),
@@ -37,8 +50,9 @@ const updateSchema = createSchema.partial().extend({
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
+    const teamIds = await getTeamUserIds(req.user!.id);
     const flows = await prisma.flow.findMany({
-      where: { userId: req.user!.id },
+      where: { userId: { in: teamIds } },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ flows });
@@ -64,8 +78,9 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
   try {
+    const teamIds = await getTeamUserIds(req.user!.id);
     const result = await prisma.flow.updateMany({
-      where: { id: req.params.id, userId: req.user!.id },
+      where: { id: req.params.id, userId: { in: teamIds } },
       data: { ...parsed.data, rules: parsed.data.rules as object[] | undefined, paths: parsed.data.paths as object[] | undefined },
     });
     if (result.count === 0) return res.status(404).json({ error: 'Not found' });
@@ -78,7 +93,8 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.flow.deleteMany({ where: { id: req.params.id, userId: req.user!.id } });
+    const teamIds = await getTeamUserIds(req.user!.id);
+    await prisma.flow.deleteMany({ where: { id: req.params.id, userId: { in: teamIds } } });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Failed to delete' });

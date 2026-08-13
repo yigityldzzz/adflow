@@ -18,6 +18,14 @@ enum Role {
   ADMIN
 }
 
+// Role within a team/organization — distinct from the platform-level Role
+// above (which controls access to AdFlow's own admin panel).
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 enum CampaignStatus {
   ACTIVE
   PAUSED
@@ -54,6 +62,66 @@ model User {
   offers          Offer[]
   landers         Lander[]
   flows           Flow[]
+  notifications   Notification[]
+  domains         Domain[]
+  adAccountConnections AdAccountConnection[]
+  ownedOrganizations   Organization[]       @relation("OrgOwner")
+  organizationMembership OrganizationMember?
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  owner     User                 @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   OrganizationMember[]
+  invites   OrganizationInvite[]
+
+  @@index([ownerId])
+}
+
+// A user belongs to at most one organization (one active workspace) — kept
+// intentionally simple rather than supporting multi-org membership.
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String   @unique
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model OrganizationInvite {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole   @default(MEMBER)
+  token          String    @unique @default(cuid())
+  invitedBy      String
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 model Alert {
@@ -66,11 +134,15 @@ model Alert {
   enabled     Boolean   @default(true)
   triggered   Boolean   @default(false)
   webhookUrl  String?
+  campaignId  String?
+  action      String    @default("notify") // 'notify' | 'pause_campaign'
   lastChecked DateTime?
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([campaignId])
 }
 
 model RefreshToken {
@@ -91,6 +163,8 @@ model Campaign {
   status      CampaignStatus @default(ACTIVE)
   budget      Float?
   cost        Float?
+  costSyncedAt    DateTime?      // last time `cost` was auto-updated from a connected ad account
+  externalCampaignId String?     // the matching campaign id on the ad platform (e.g. Meta campaign_id), for cost auto-sync
   createdAt   DateTime       @default(now())
   trafficSourceId String?
   flowId          String?
@@ -99,12 +173,35 @@ model Campaign {
   flow            Flow?          @relation(fields: [flowId], references: [id])
   links           TrackingLink[]
   clicks          Click[]
+  alerts          Alert[]
+}
+
+// An OAuth-connected ad account whose spend we can auto-pull into
+// Campaign.cost. Meta only for now — the developer app registration process
+// (App ID/Secret, App Review for ads_read) is something the account owner
+// must complete on Meta's side; this table just stores the resulting tokens.
+model AdAccountConnection {
+  id             String    @id @default(cuid())
+  userId         String
+  platform       String    @default("meta")
+  accountId      String    // e.g. "act_1234567890"
+  accountName    String?
+  accessToken    String
+  tokenExpiresAt DateTime?
+  lastSyncAt     DateTime?
+  lastSyncError  String?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, accountId])
+  @@index([userId])
 }
 
 model TrackingLink {
   id              String       @id @default(cuid())
   userId          String
   campaignId      String?
+  domainId        String?
   slug            String       @unique
   name            String
   destinationUrl  String
@@ -112,8 +209,30 @@ model TrackingLink {
   createdAt       DateTime     @default(now())
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaign        Campaign?    @relation(fields: [campaignId], references: [id])
+  domain          Domain?      @relation(fields: [domainId], references: [id], onDelete: SetNull)
   clicks          Click[]
   conversions     Conversion[]
+}
+
+// A custom tracking domain a user has added to replace the default
+// adflow.digitaladexpert.de in their tracking/postback/pixel URLs.
+// `verified` is set once we confirm a DNS TXT record proving ownership.
+// Actually routing traffic for a verified domain still requires a manual,
+// safety-gated nginx step (see scripts/add-custom-domain.sh) — this table
+// only tracks ownership/verification state, not live routing status.
+model Domain {
+  id                String    @id @default(cuid())
+  userId            String
+  domain            String    @unique
+  verified          Boolean   @default(false)
+  verificationToken String    @default(cuid())
+  live              Boolean   @default(false) // flipped manually once nginx routing is confirmed live
+  createdAt         DateTime  @default(now())
+  verifiedAt        DateTime?
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links             TrackingLink[]
+
+  @@index([userId])
 }
 
 model Click {
@@ -130,6 +249,8 @@ model Click {
   fbclid         String?
   gclid          String?
   ttclid         String?
+  sccid          String?
+  externalClickId String?
   ip             String?
   country        String?
   countryCode    String?
@@ -190,6 +311,7 @@ model TrafficSource {
   pixelId     String?
   accessToken String?
   fbEventName String?
+  eventName   String?    // TikTok/Snapchat conversion event name (fbEventName is Meta-only)
   createdAt   DateTime   @default(now())
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaigns   Campaign[]

@@ -32,7 +32,6 @@ import {
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Docs', href: '#' },
 ];
 
 const FEATURES = [
@@ -46,17 +45,17 @@ const FEATURES = [
   },
   {
     icon: <Target className="w-6 h-6" />,
-    title: 'Multi-Touch Attribution',
+    title: 'Precise Click Attribution',
     description:
-      'Understand the full customer journey with first-touch, last-touch, and linear attribution models across all Meta campaigns.',
+      'Every conversion is linked back to its originating click — full visitor data, UTM parameters, and click IDs (fbclid, gclid, ttclid) captured automatically.',
     color: 'from-indigo-500/20 to-blue-500/20',
     iconColor: 'text-indigo-400',
   },
   {
     icon: <Bot className="w-6 h-6" />,
-    title: 'AI-Powered Insights',
+    title: 'Automated Performance Alerts',
     description:
-      'Our ML engine analyzes patterns in your click data to surface actionable insights and optimize your ad spend automatically.',
+      'Automatic detection of ad fatigue, CPA spikes, and traffic anomalies — surfaced as clear alerts so you catch problems before they cost you.',
     color: 'from-violet-500/20 to-purple-500/20',
     iconColor: 'text-violet-400',
   },
@@ -125,9 +124,9 @@ const STEPS = [
   },
   {
     number: '03',
-    title: 'Optimize with AI',
+    title: 'Spot Problems Early',
     description:
-      'Our AI analyzes your data to identify top-performing segments, detect anomalies, and recommend budget reallocations to maximize ROAS.',
+      'Automated alerts flag ad fatigue, cost spikes, and unusual bot activity — so you can act before they eat into your ROAS.',
   },
 ];
 
@@ -194,16 +193,17 @@ const PLANS = [
 
 const SHOWCASE_TABS = [
   { id: 'analytics', label: 'Analytics' },
+  { id: 'flows', label: 'Flow Builder' },
   { id: 'links', label: 'Link Detail' },
   { id: 'utm', label: 'UTM Builder' },
   { id: 'alerts', label: 'Smart Alerts' },
 ];
 
 const STATS = [
-  { value: '10M+', label: 'Clicks Tracked', icon: <MousePointerClick className="w-5 h-5" /> },
-  { value: '99.9%', label: 'Uptime SLA', icon: <Activity className="w-5 h-5" /> },
-  { value: '<50ms', label: 'Redirect Latency', icon: <Zap className="w-5 h-5" /> },
-  { value: '150+', label: 'Countries Covered', icon: <Globe className="w-5 h-5" /> },
+  { value: 'Self-Hosted', label: 'Your Infrastructure', icon: <MousePointerClick className="w-5 h-5" /> },
+  { value: 'S2S + Pixel', label: 'Dual Conversion Tracking', icon: <Activity className="w-5 h-5" /> },
+  { value: 'Meta CAPI', label: 'Native Integration', icon: <Zap className="w-5 h-5" /> },
+  { value: 'Real-Time', label: 'Click-Level Data', icon: <Globe className="w-5 h-5" /> },
 ];
 
 export default function LandingPage() {
@@ -220,7 +220,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center shadow-lg shadow-indigo-500/25">
               <Activity className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">
+            <span className="text-lg font-bold text-[#0f172a] tracking-tight">
               Ad<span className="gradient-text">Flow</span>
             </span>
           </Link>
@@ -300,7 +300,7 @@ export default function LandingPage() {
           {/* Announcement badge */}
           <div className="inline-flex items-center gap-2 bg-[#ffffff] border border-[#e2e8f0] rounded-full px-4 py-1.5 text-sm text-[#64748b] mb-8">
             <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse-slow" />
-            New: AI-powered budget optimization is live
+            New: Meta Conversions API integration
             <ChevronRight className="w-3 h-3" />
           </div>
 
@@ -314,8 +314,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-[#64748b] max-w-2xl mx-auto mb-10 leading-relaxed">
-            AI-powered attribution platform for Meta Ads and performance marketers.
-            Sub-50ms redirects, real-time analytics, and fraud detection in one dashboard.
+            The self-hosted attribution platform for Meta Ads and performance marketers.
+            Real-time analytics, server-side conversion tracking, and fraud detection in one dashboard.
           </p>
 
           {/* CTA buttons */}
@@ -352,7 +352,8 @@ export default function LandingPage() {
               </div>
 
               {/* Dashboard mockup */}
-              <div className="p-6 bg-[#f8fafc]">
+              <div className="p-6 bg-[#f8fafc] overflow-x-auto">
+                <div className="min-w-[640px]">
                 {/* KPI row */}
                 <div className="grid grid-cols-5 gap-3 mb-5">
                   {[
@@ -405,6 +406,7 @@ export default function LandingPage() {
                       ))}
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -535,11 +537,12 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
                 <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
-                  adflow.digitaladexpert.de/{showcaseTab === 'analytics' ? 'analytics' : showcaseTab === 'links' ? 'links/abc12345' : showcaseTab === 'utm' ? 'utm-builder' : 'alerts'}
+                  adflow.digitaladexpert.de/{showcaseTab === 'analytics' ? 'analytics' : showcaseTab === 'flows' ? 'flows' : showcaseTab === 'links' ? 'links/abc12345' : showcaseTab === 'utm' ? 'utm-builder' : 'alerts'}
                 </div>
               </div>
 
-              <div className="p-5 bg-[#f8fafc] min-h-[340px]">
+              <div className="p-5 bg-[#f8fafc] min-h-[340px] overflow-x-auto">
+                <div className="min-w-[600px]">
 
                 {/* Analytics tab */}
                 {showcaseTab === 'analytics' && (
@@ -595,6 +598,53 @@ export default function LandingPage() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Flow Builder tab */}
+                {showcaseTab === 'flows' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#10b981]/10 text-[#10b981]">Active</span>
+                        <span className="text-sm font-semibold text-[#0f172a]">Meta → Geo Split → Offer</span>
+                      </div>
+                      <span className="text-[10px] text-[#94a3b8]">A/B Split Test</span>
+                    </div>
+
+                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-5">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="px-3 py-2 rounded-lg bg-[#6366f1]/10 border border-[#6366f1]/20 text-center">
+                          <p className="text-[9px] text-[#94a3b8] mb-0.5">SOURCE</p>
+                          <p className="text-xs font-semibold text-[#0f172a]">Meta Ads</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#cbd5e1]" />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
+                            <span className="text-[10px] font-bold text-[#6366f1] w-8">70%</span>
+                            <span className="text-xs text-[#64748b]">Lander A → Offer 1</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
+                            <span className="text-[10px] font-bold text-[#8b5cf6] w-8">30%</span>
+                            <span className="text-xs text-[#64748b]">Lander B → Offer 2</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-[#e2e8f0]">
+                        <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">Conditional Rules</p>
+                        <div className="flex items-center gap-2 text-xs text-[#64748b] bg-[#f8fafc] rounded-lg px-3 py-2">
+                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">IF</span>
+                          country = US
+                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">THEN</span>
+                          route to Offer 1
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[#94a3b8] text-center">
+                      Route traffic by country, device, OS, or language — or split-test paths with weighted distribution.
+                    </p>
                   </div>
                 )}
 
@@ -747,6 +797,7 @@ export default function LandingPage() {
                   </div>
                 )}
 
+                </div>
               </div>
             </div>
           </div>
@@ -847,7 +898,7 @@ export default function LandingPage() {
             <div className="relative">
               <div className="inline-flex items-center gap-2 bg-[#6366f1]/20 border border-[#6366f1]/30 rounded-full px-4 py-1.5 text-sm text-[#a5b4fc] mb-6">
                 <TrendingUp className="w-4 h-4" />
-                Join 2,000+ performance marketers
+                Built for performance marketers
               </div>
               <h2 className="text-4xl sm:text-5xl font-extrabold text-[#0f172a] mb-4">
                 Start tracking smarter today
@@ -884,16 +935,15 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center">
                 <Activity className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="text-base font-bold text-white">
+              <span className="text-base font-bold text-[#0f172a]">
                 Ad<span className="gradient-text">Flow</span>
               </span>
             </div>
 
             <div className="flex items-center gap-8 text-sm text-[#94a3b8]">
-              <a href="#" className="hover:text-[#64748b] transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-[#64748b] transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-[#64748b] transition-colors">Documentation</a>
-              <a href="mailto:support@adflow.io" className="hover:text-[#64748b] transition-colors">Support</a>
+              <Link href="/privacy" className="hover:text-[#64748b] transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-[#64748b] transition-colors">Terms of Service</Link>
+              <a href="mailto:info@digitaladexpert.de" className="hover:text-[#64748b] transition-colors">Support</a>
             </div>
 
             <p className="text-sm text-[#94a3b8]">

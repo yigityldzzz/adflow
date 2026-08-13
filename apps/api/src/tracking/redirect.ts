@@ -12,8 +12,14 @@ const VISITOR_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
 const TRACKING_PARAMS = new Set([
   'utm_source','utm_medium','utm_campaign','utm_content','utm_term',
-  'fbclid','gclid','ttclid','ref','referrer',
+  'fbclid','gclid','ttclid','sccid','ScCid','ref','referrer',
+  'clickid','click_id','subid','sub_id','cid',
 ]);
+
+// Common query-param names traffic networks use to pass their own click
+// identifier into our tracking link. We store whichever one is present so it
+// can be echoed back verbatim in outbound postbacks to that network later.
+const EXTERNAL_CLICKID_PARAMS = ['clickid', 'click_id', 'subid', 'sub_id', 'cid'];
 
 function getRealIp(req: Request): string {
   const cf = req.headers['cf-connecting-ip'];
@@ -46,10 +52,20 @@ function buildDestinationUrl(base: string, incomingQuery: Record<string, string>
   } catch { return base; }
 }
 
-interface FlowRule {
-  condition: 'country' | 'device' | 'os' | 'language' | 'always';
-  operator: '=' | '!=';
+interface FlowConditionCheck {
+  condition: 'country' | 'device' | 'os' | 'language';
+  operator: 'is' | 'is_not' | 'contains';
   value: string;
+}
+
+interface FlowRule {
+  // New format — multiple conditions combined with AND logic (all must match).
+  conditions?: FlowConditionCheck[];
+  // Legacy format — single condition. Kept for backward compatibility with
+  // flows created before multi-condition support was added.
+  condition?: 'country' | 'device' | 'os' | 'language' | 'always';
+  operator?: 'is' | 'is_not' | 'contains';
+  value?: string;
   landerId?: string;
   offerId?: string;
 }
@@ -71,11 +87,22 @@ function pickWeightedPath(paths: FlowPath[]): FlowPath | null {
   return paths[paths.length - 1] ?? null;
 }
 
+function checkCondition(actual: string, operator: 'is' | 'is_not' | 'contains', value: string): boolean {
+  const a = actual.toLowerCase();
+  const v = (value ?? '').toLowerCase();
+  if (operator === 'contains') return a.includes(v);
+  const isEqual = a === v;
+  return operator === 'is_not' ? !isEqual : isEqual;
+}
+
 function matchRule(rule: FlowRule, ctx: { country: string; device: string; os: string; language: string }): boolean {
-  if (rule.condition === 'always') return true;
-  const actual = ctx[rule.condition] ?? '';
-  const match = actual.toLowerCase() === (rule.value ?? '').toLowerCase();
-  return rule.operator === '=' ? match : !match;
+  // New format: every condition in the list must match (AND logic).
+  if (rule.conditions && rule.conditions.length > 0) {
+    return rule.conditions.every((c) => checkCondition(ctx[c.condition] ?? '', c.operator, c.value));
+  }
+  // Legacy format: single condition.
+  if (!rule.condition || rule.condition === 'always') return true;
+  return checkCondition(ctx[rule.condition] ?? '', rule.operator ?? 'is', rule.value ?? '');
 }
 
 async function resolveFlowDestination(
@@ -138,7 +165,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   const link = await prisma.trackingLink.findUnique({
     where: { slug },
     include: {
-      campaign: { select: { id: true, flowId: true } },
+      campaign: { select: { id: true, flowId: true, status: true } },
     },
   });
 
@@ -169,14 +196,87 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   const fbclid      = q['fbclid']       ?? null;
   const gclid       = q['gclid']        ?? null;
   const ttclid      = q['ttclid']       ?? null;
+  const sccid       = q['sccid']        ?? q['ScCid'] ?? null; // Snapchat click id — network-dependent casing
   const referrer    = req.headers['referer'] ?? q['referrer'] ?? null;
   const language    = req.headers['accept-language']?.split(',')[0] ?? null;
+
+  // Capture the traffic network's own click id, if it passed one, so we can
+  // echo it back verbatim in outbound postbacks to that network.
+  let externalClickId: string | null = null;
+  for (const key of EXTERNAL_CLICKID_PARAMS) {
+    if (q[key]) { externalClickId = q[key]; break; }
+  }
 
   // Pass-through params for Lander/Offer URLs
   const passParams: Record<string, string> = { adflow_vid: visitorId };
   if (fbclid) passParams['fbclid'] = fbclid;
   if (gclid)  passParams['gclid']  = gclid;
   if (ttclid) passParams['ttclid'] = ttclid;
+  if (sccid)  passParams['sccid']  = sccid;
+  if (externalClickId) passParams['clickid'] = externalClickId;
+
+  // ── Bot handling ─────────────────────────────────────────────────────────
+  // Known bots (UA pattern or known bad IP range) are never forwarded to the
+  // real offer/lander — this protects ad spend and offer-side reputation.
+  // We still log the click (marked isBot: true) so it shows up in reporting.
+  // 'Suspicious' clicks (weaker signal, e.g. missing UA) are still forwarded —
+  // blocking on a weak signal risks turning away real visitors.
+  if (isBot) {
+    res.status(200).type('text/plain').send('');
+
+    prisma.click.create({
+      data: {
+        linkId: link.id,
+        campaignId: link.campaignId ?? null,
+        userId: link.userId,
+        visitorId,
+        utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+        fbclid, gclid, ttclid, sccid, externalClickId,
+        ip,
+        country:      geo.country      ?? null,
+        countryCode:  geo.countryCode  ?? null,
+        city:         geo.city         ?? null,
+        region:       geo.region       ?? null,
+        browser, browserVersion, os,
+        device:   deviceType,
+        language, referrer: referrer ?? null,
+        userAgent: userAgentString || null,
+        isBot: true, isSuspicious, isUnique: false,
+      },
+    }).catch(() => {});
+    return;
+  }
+
+  // ── Paused-campaign handling ────────────────────────────────────────────
+  // A campaign can be paused manually or automatically (via an alert action).
+  // While paused we stop forwarding clicks to the real offer/lander — but we
+  // still log the click (so it's visible in reporting) rather than silently
+  // dropping it.
+  if (link.campaign?.status === 'PAUSED') {
+    res.status(200).type('text/plain').send('');
+
+    prisma.click.create({
+      data: {
+        linkId: link.id,
+        campaignId: link.campaignId ?? null,
+        userId: link.userId,
+        visitorId,
+        utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+        fbclid, gclid, ttclid, sccid, externalClickId,
+        ip,
+        country:      geo.country      ?? null,
+        countryCode:  geo.countryCode  ?? null,
+        city:         geo.city         ?? null,
+        region:       geo.region       ?? null,
+        browser, browserVersion, os,
+        device:   deviceType,
+        language, referrer: referrer ?? null,
+        userAgent: userAgentString || null,
+        isBot: false, isSuspicious, isUnique: false,
+      },
+    }).catch(() => {});
+    return;
+  }
 
   // ── Resolve destination ──────────────────────────────────────────────────
   let destinationUrl = buildDestinationUrl(link.destinationUrl, q);
@@ -224,7 +324,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
       userId: link.userId,
       visitorId,
       utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-      fbclid, gclid, ttclid,
+      fbclid, gclid, ttclid, sccid, externalClickId,
       ip,
       country:      geo.country      ?? null,
       countryCode:  geo.countryCode  ?? null,
