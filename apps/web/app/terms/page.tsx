@@ -133,8 +133,9 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-bold text-[#0f172a] mb-3">11. Governing law</h2>
             <p>
-              These Terms are governed by the laws of Germany, without regard to its conflict-of-law provisions,
-              unless mandatory consumer-protection law in your country of residence provides otherwise.
+              These Terms are governed by the laws of Albania, where the service operator is registered, without
+              regard to its conflict-of-law provisions, unless mandatory consumer-protection law in your country of
+              residence provides otherwise.
             </p>
           </section>
 
