@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
 import {
   Zap,
   Target,
@@ -22,11 +23,6 @@ import {
   FileText,
   Bell,
   Download,
-  MapPin,
-  Smartphone,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
 } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -193,11 +189,21 @@ const PLANS = [
 
 const SHOWCASE_TABS = [
   { id: 'analytics', label: 'Analytics' },
-  { id: 'flows', label: 'Flow Builder' },
+  { id: 'campaigns', label: 'Campaigns' },
   { id: 'links', label: 'Link Detail' },
   { id: 'utm', label: 'UTM Builder' },
   { id: 'alerts', label: 'Smart Alerts' },
 ];
+
+const SHOWCASE_IMAGES: Record<string, { src: string; alt: string; path: string }> = {
+  analytics: { src: '/screenshots/analytics.png', alt: 'AdFlow analytics dashboard', path: 'adflow.digitaladexpert.de/analytics' },
+  campaigns: { src: '/screenshots/campaigns.png', alt: 'AdFlow campaigns list', path: 'adflow.digitaladexpert.de/campaigns' },
+  links: { src: '/screenshots/links.png', alt: 'AdFlow tracking links', path: 'adflow.digitaladexpert.de/links' },
+  utm: { src: '/screenshots/utm-builder.png', alt: 'AdFlow UTM builder', path: 'adflow.digitaladexpert.de/utm-builder' },
+  alerts: { src: '/screenshots/alerts.png', alt: 'AdFlow smart alerts', path: 'adflow.digitaladexpert.de/alerts' },
+};
+
+const DEMO_URL = 'https://adflow.digitaladexpert.de/r/site-adflow-demo';
 
 const STATS = [
   { value: 'Self-Hosted', label: 'Your Infrastructure', icon: <MousePointerClick className="w-5 h-5" /> },
@@ -209,6 +215,40 @@ const STATS = [
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showcaseTab, setShowcaseTab] = useState('analytics');
+
+  // Container-scroll effect on the hero screenshot (same technique used on
+  // the CRM panel's marketing page): rotates/scales down from a 3D tilt to
+  // flat as the section scrolls past, then stays flat.
+  const heroCardRef = useRef<HTMLDivElement>(null);
+  const heroWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+    let raf = 0;
+    const tick = () => {
+      const card = heroCardRef.current;
+      const wrap = heroWrapRef.current;
+      if (card && wrap) {
+        const rect = wrap.getBoundingClientRect();
+        const y = window.scrollY || window.pageYOffset;
+        const p = Math.min(1, Math.max(0, y / ((rect.top + y) + rect.height * 0.45)));
+        const mobile = window.innerWidth < 768;
+        const rot = 14 - 14 * p;
+        const scale = mobile ? 0.85 + 0.15 * p : 0.97 + 0.03 * p;
+        card.style.transform = `perspective(1400px) rotateX(${rot}deg) scale(${scale})`;
+      }
+      raf = 0;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    tick();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
@@ -328,87 +368,44 @@ export default function LandingPage() {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
-              href="#features"
+              href={DEMO_URL}
+              target="_blank"
+              rel="noopener"
               className="inline-flex items-center justify-center gap-2 bg-[#ffffff] hover:bg-[#e2e8f0] border border-[#e2e8f0] text-[#0f172a] font-semibold px-8 py-3.5 rounded-xl transition-all duration-200"
             >
               View Demo
             </a>
           </div>
+          <p className="text-xs text-[#94a3b8] -mt-10 mb-16">Demo opens automatically, no password needed</p>
 
-          {/* Mock Dashboard Preview */}
-          <div className="relative max-w-5xl mx-auto">
+          {/* Real Dashboard Preview — container-scroll effect */}
+          <div ref={heroWrapRef} className="relative max-w-5xl mx-auto" style={{ perspective: '1400px' }}>
             {/* Glow behind dashboard */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#6366f1]/20 to-transparent rounded-2xl blur-xl" />
 
-            <div className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-2xl">
+            <div
+              ref={heroCardRef}
+              className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-2xl"
+              style={{ transformOrigin: 'center top', willChange: 'transform' }}
+            >
               {/* Browser chrome */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc]">
                 <div className="w-3 h-3 rounded-full bg-[#ef4444]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
                 <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
-                  app.adflow.digitaladexpert.de/dashboard
+                  adflow.digitaladexpert.de/dashboard
                 </div>
               </div>
 
-              {/* Dashboard mockup */}
-              <div className="p-6 bg-[#f8fafc] overflow-x-auto">
-                <div className="min-w-[640px]">
-                {/* KPI row */}
-                <div className="grid grid-cols-5 gap-3 mb-5">
-                  {[
-                    { label: 'Total Clicks', value: '1,284,392', change: '+12.5%', color: 'text-[#10b981]' },
-                    { label: 'Conversions', value: '24,891', change: '+8.3%', color: 'text-[#10b981]' },
-                    { label: 'Revenue', value: '$182,440', change: '+21.2%', color: 'text-[#10b981]' },
-                    { label: 'ROAS', value: '4.2x', change: '+0.8x', color: 'text-[#10b981]' },
-                    { label: 'Bot Rate', value: '2.1%', change: '-0.4%', color: 'text-[#10b981]' },
-                  ].map((kpi) => (
-                    <div key={kpi.label} className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-3">
-                      <p className="text-[10px] text-[#94a3b8] mb-1">{kpi.label}</p>
-                      <p className="text-sm font-bold text-[#0f172a]">{kpi.value}</p>
-                      <p className={`text-[10px] font-medium ${kpi.color}`}>{kpi.change}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Chart area */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                    <p className="text-xs text-[#64748b] font-medium mb-4">Performance Overview — 30 days</p>
-                    <div className="flex items-end gap-1 h-20">
-                      {[35, 52, 41, 67, 55, 72, 61, 78, 65, 88, 71, 94, 82, 73, 90, 85, 96, 88, 104, 92, 110, 98, 115, 108, 120, 112, 128, 118, 135, 125].map((h, i) => (
-                        <div key={i} className="flex-1 flex flex-col gap-0.5 items-center">
-                          <div
-                            style={{ height: `${(h / 135) * 80}px` }}
-                            className="w-full bg-gradient-to-t from-[#6366f1]/60 to-[#8b5cf6]/60 rounded-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                    <p className="text-xs text-[#64748b] font-medium mb-4">Traffic by Device</p>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'Mobile', pct: 68, color: 'bg-[#6366f1]' },
-                        { label: 'Desktop', pct: 24, color: 'bg-[#8b5cf6]' },
-                        { label: 'Tablet', pct: 8, color: 'bg-[#a78bfa]' },
-                      ].map((d) => (
-                        <div key={d.label}>
-                          <div className="flex justify-between text-[10px] text-[#94a3b8] mb-1">
-                            <span>{d.label}</span>
-                            <span>{d.pct}%</span>
-                          </div>
-                          <div className="h-1.5 bg-[#e2e8f0] rounded-full overflow-hidden">
-                            <div className={`h-full ${d.color} rounded-full`} style={{ width: `${d.pct}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                </div>
-              </div>
+              <Image
+                src="/screenshots/dashboard.png"
+                alt="AdFlow dashboard — real click, conversion, and revenue data"
+                width={1440}
+                height={900}
+                className="w-full h-auto block"
+                priority
+              />
             </div>
           </div>
         </div>
@@ -527,7 +524,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Mockup window */}
+          {/* Mockup window — real screenshots, swapped per tab */}
           <div className="relative max-w-5xl mx-auto">
             <div className="absolute inset-0 bg-gradient-to-t from-[#6366f1]/15 to-transparent rounded-2xl blur-xl" />
             <div className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-2xl">
@@ -537,268 +534,18 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
                 <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
-                  adflow.digitaladexpert.de/{showcaseTab === 'analytics' ? 'analytics' : showcaseTab === 'flows' ? 'flows' : showcaseTab === 'links' ? 'links/abc12345' : showcaseTab === 'utm' ? 'utm-builder' : 'alerts'}
+                  {SHOWCASE_IMAGES[showcaseTab].path}
                 </div>
               </div>
 
-              <div className="p-5 bg-[#f8fafc] min-h-[340px] overflow-x-auto">
-                <div className="min-w-[600px]">
-
-                {/* Analytics tab */}
-                {showcaseTab === 'analytics' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: 'Total Clicks', value: '48,291', change: '+14.2%', up: true },
-                        { label: 'Unique Visitors', value: '31,840', change: '+9.7%', up: true },
-                        { label: 'Bot Rate', value: '1.8%', change: '-0.3%', up: false },
-                      ].map((s) => (
-                        <div key={s.label} className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-3">
-                          <p className="text-[10px] text-[#94a3b8] mb-1">{s.label}</p>
-                          <p className="text-lg font-bold text-[#0f172a]">{s.value}</p>
-                          <p className={`text-[10px] font-medium ${s.up ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>{s.change} vs last period</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-2 bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                        <p className="text-xs text-[#64748b] font-medium mb-3">Clicks over time — 14 days</p>
-                        <div className="flex items-end gap-1 h-16">
-                          {[40,55,48,70,62,85,74,90,68,95,82,105,88,112].map((h, i) => (
-                            <div key={i} className="flex-1">
-                              <div style={{ height: `${(h/112)*64}px` }} className="w-full bg-gradient-to-t from-[#6366f1]/70 to-[#8b5cf6]/40 rounded-sm" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                        <p className="text-xs text-[#64748b] font-medium mb-3">Top Countries</p>
-                        <div className="space-y-2">
-                          {[{ c: 'Turkey', pct: 42 }, { c: 'Germany', pct: 28 }, { c: 'US', pct: 18 }, { c: 'UK', pct: 12 }].map((r) => (
-                            <div key={r.c} className="flex items-center gap-2">
-                              <MapPin className="w-3 h-3 text-[#94a3b8] flex-shrink-0" />
-                              <span className="text-[10px] text-[#64748b] flex-1">{r.c}</span>
-                              <span className="text-[10px] font-semibold text-[#0f172a]">{r.pct}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                      <p className="text-xs text-[#64748b] font-medium mb-3">Device Breakdown</p>
-                      <div className="grid grid-cols-3 gap-4">
-                        {[{ d: 'Mobile', pct: 64, color: 'bg-[#6366f1]' }, { d: 'Desktop', pct: 29, color: 'bg-[#8b5cf6]' }, { d: 'Tablet', pct: 7, color: 'bg-[#a78bfa]' }].map((d) => (
-                          <div key={d.d}>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-[10px] text-[#94a3b8] flex items-center gap-1"><Smartphone className="w-2.5 h-2.5" />{d.d}</span>
-                              <span className="text-[10px] font-semibold text-[#0f172a]">{d.pct}%</span>
-                            </div>
-                            <div className="h-1.5 bg-[#e2e8f0] rounded-full"><div className={`h-full ${d.color} rounded-full`} style={{ width: `${d.pct}%` }} /></div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Flow Builder tab */}
-                {showcaseTab === 'flows' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#10b981]/10 text-[#10b981]">Active</span>
-                        <span className="text-sm font-semibold text-[#0f172a]">Meta → Geo Split → Offer</span>
-                      </div>
-                      <span className="text-[10px] text-[#94a3b8]">A/B Split Test</span>
-                    </div>
-
-                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-5">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="px-3 py-2 rounded-lg bg-[#6366f1]/10 border border-[#6366f1]/20 text-center">
-                          <p className="text-[9px] text-[#94a3b8] mb-0.5">SOURCE</p>
-                          <p className="text-xs font-semibold text-[#0f172a]">Meta Ads</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-[#cbd5e1]" />
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
-                            <span className="text-[10px] font-bold text-[#6366f1] w-8">70%</span>
-                            <span className="text-xs text-[#64748b]">Lander A → Offer 1</span>
-                          </div>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
-                            <span className="text-[10px] font-bold text-[#8b5cf6] w-8">30%</span>
-                            <span className="text-xs text-[#64748b]">Lander B → Offer 2</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-4 border-t border-[#e2e8f0]">
-                        <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">Conditional Rules</p>
-                        <div className="flex items-center gap-2 text-xs text-[#64748b] bg-[#f8fafc] rounded-lg px-3 py-2">
-                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">IF</span>
-                          country = US
-                          <span className="px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[10px] font-mono">THEN</span>
-                          route to Offer 1
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-[#94a3b8] text-center">
-                      Route traffic by country, device, OS, or language — or split-test paths with weighted distribution.
-                    </p>
-                  </div>
-                )}
-
-                {/* Link Detail tab */}
-                {showcaseTab === 'links' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-4 gap-3">
-                      {[
-                        { label: 'Total Clicks', value: '2,841', color: 'text-[#818cf8]' },
-                        { label: 'Human', value: '2,790', color: 'text-[#10b981]' },
-                        { label: 'Bots Filtered', value: '51', color: 'text-[#ef4444]' },
-                        { label: 'Conversions', value: '134', color: 'text-[#f59e0b]' },
-                      ].map((s) => (
-                        <div key={s.label} className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-3 text-center">
-                          <p className="text-[10px] text-[#94a3b8] mb-1">{s.label}</p>
-                          <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl overflow-hidden">
-                      <div className="grid grid-cols-6 gap-2 px-4 py-2 border-b border-[#e2e8f0] bg-[#f8fafc]">
-                        {['Time', 'Country', 'Device', 'UTM Source', 'Status', 'Converted'].map((h) => (
-                          <span key={h} className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide">{h}</span>
-                        ))}
-                      </div>
-                      {[
-                        { time: '2m ago', country: '🇹🇷 Turkey', device: 'Mobile', source: 'facebook', status: 'Human', conv: true },
-                        { time: '5m ago', country: '🇩🇪 Germany', device: 'Desktop', source: 'google', status: 'Human', conv: false },
-                        { time: '8m ago', country: '🇺🇸 US', device: 'Mobile', source: 'facebook', status: 'Bot', conv: false },
-                        { time: '11m ago', country: '🇬🇧 UK', device: 'Desktop', source: 'tiktok', status: 'Human', conv: true },
-                        { time: '14m ago', country: '🇹🇷 Turkey', device: 'Mobile', source: 'facebook', status: 'Human', conv: false },
-                      ].map((row, i) => (
-                        <div key={i} className="grid grid-cols-6 gap-2 px-4 py-2.5 border-b border-[#e2e8f0]/50 hover:bg-[#ffffff] transition-colors">
-                          <span className="text-[10px] text-[#94a3b8] flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{row.time}</span>
-                          <span className="text-[10px] text-[#64748b]">{row.country}</span>
-                          <span className="text-[10px] text-[#64748b] flex items-center gap-1"><Smartphone className="w-2.5 h-2.5" />{row.device}</span>
-                          <span className="text-[10px] text-[#818cf8]">{row.source}</span>
-                          <span className={`text-[10px] font-semibold ${row.status === 'Bot' ? 'text-[#ef4444]' : 'text-[#10b981]'}`}>{row.status}</span>
-                          <span>{row.conv ? <CheckCircle2 className="w-3.5 h-3.5 text-[#10b981]" /> : <span className="text-[10px] text-[#94a3b8]">—</span>}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* UTM Builder tab */}
-                {showcaseTab === 'utm' && (
-                  <div className="grid grid-cols-2 gap-5">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { label: 'Meta Ads', color: 'text-[#1877F2] bg-[#1877F2]/10 border-[#1877F2]/20' },
-                          { label: 'Google Ads', color: 'text-[#34A853] bg-[#34A853]/10 border-[#34A853]/20' },
-                          { label: 'TikTok', color: 'text-[#ff0050] bg-[#ff0050]/10 border-[#ff0050]/20' },
-                          { label: 'Email', color: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20' },
-                        ].map((p) => (
-                          <div key={p.label} className={`text-center text-[10px] font-semibold px-2 py-2 rounded-xl border ${p.color}`}>{p.label}</div>
-                        ))}
-                      </div>
-                      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4 space-y-3">
-                        <p className="text-xs font-semibold text-[#0f172a]">Parameters</p>
-                        {[
-                          { label: 'Destination URL', val: 'chromewebstore.google.com/detail/...' },
-                          { label: 'UTM Source', val: 'facebook' },
-                          { label: 'UTM Medium', val: 'paid_social' },
-                          { label: 'UTM Campaign', val: 'stylekit_launch' },
-                          { label: 'UTM Content', val: '{{ad.id}}' },
-                        ].map((f) => (
-                          <div key={f.label}>
-                            <p className="text-[10px] text-[#94a3b8] mb-1">{f.label}</p>
-                            <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-1.5">
-                              <p className="text-[10px] text-[#64748b] truncate">{f.val}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-4">
-                        <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-3">Preview URL</p>
-                        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3 mb-3">
-                          <p className="text-[10px] font-mono text-[#818cf8] break-all leading-relaxed">chromewebstore.google.com/detail/...?utm_source=facebook&utm_medium=paid_social&utm_campaign=stylekit_launch&utm_content={'{{ad.id}}'}</p>
-                        </div>
-                        <div className="space-y-1.5">
-                          {[['utm_source', 'facebook'], ['utm_medium', 'paid_social'], ['utm_campaign', 'stylekit_launch']].map(([k, v]) => (
-                            <div key={k} className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono text-[#6366f1] bg-[#6366f1]/10 px-2 py-0.5 rounded w-28 flex-shrink-0">{k}</span>
-                              <span className="text-[10px] text-[#64748b]">{v}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="bg-[#6366f1] rounded-xl py-3 text-center">
-                        <p className="text-xs font-semibold text-white">+ Create Tracking Link</p>
-                      </div>
-                      <div className="bg-[#10b981]/10 border border-[#10b981]/20 rounded-xl p-3">
-                        <p className="text-[10px] font-semibold text-[#10b981] mb-1">Tracking link created!</p>
-                        <p className="text-[10px] font-mono text-[#34d399]">adflow.digitaladexpert.de/r/xK9mP2qA</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Smart Alerts tab */}
-                {showcaseTab === 'alerts' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: 'Triggered', value: '1', color: 'text-[#ef4444]', bg: 'bg-[#ef4444]/10 border-[#ef4444]/20' },
-                        { label: 'Healthy', value: '3', color: 'text-[#10b981]', bg: 'bg-[#10b981]/10 border-[#10b981]/20' },
-                        { label: 'Disabled', value: '1', color: 'text-[#94a3b8]', bg: 'bg-[#e2e8f0] border-[#e2e8f0]' },
-                      ].map((s) => (
-                        <div key={s.label} className={`border rounded-xl p-3 text-center ${s.bg}`}>
-                          <p className="text-[10px] text-[#64748b] mb-1">{s.label}</p>
-                          <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl overflow-hidden">
-                      {[
-                        { name: 'High Bot Rate', metric: 'bot_rate > 10%', current: '12.4%', status: 'triggered' },
-                        { name: 'Daily Clicks Drop', metric: 'clicks < 500', current: '1,240', status: 'healthy' },
-                        { name: 'Revenue Alert', metric: 'revenue > $1,000', current: '$840', status: 'healthy' },
-                        { name: 'Conv. Rate Drop', metric: 'conversions < 10', current: '34', status: 'healthy' },
-                        { name: 'CPA Monitor', metric: 'cpa > $50', current: 'Disabled', status: 'disabled' },
-                      ].map((alert, i) => (
-                        <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-[#e2e8f0]/50">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${alert.status === 'triggered' ? 'bg-[#ef4444]' : alert.status === 'healthy' ? 'bg-[#10b981]' : 'bg-[#94a3b8]'}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-[#0f172a]">{alert.name}</p>
-                            <p className="text-[10px] text-[#94a3b8]">{alert.metric}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-xs font-bold ${alert.status === 'triggered' ? 'text-[#ef4444]' : alert.status === 'healthy' ? 'text-[#10b981]' : 'text-[#94a3b8]'}`}>{alert.current}</p>
-                          </div>
-                          {alert.status === 'triggered' && (
-                            <AlertTriangle className="w-4 h-4 text-[#ef4444] flex-shrink-0" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-[#ffffff] border border-[#6366f1]/30 rounded-xl p-4">
-                      <p className="text-xs font-semibold text-[#0f172a] mb-1">New Alert Rule</p>
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        <div className="bg-[#f8fafc] border border-[#6366f1]/30 rounded-lg px-3 py-2 text-[10px] text-[#818cf8]">Bot Rate</div>
-                        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2 text-[10px] text-[#64748b]">greater than</div>
-                        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2 text-[10px] text-[#64748b]">10%</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                </div>
-              </div>
+              <Image
+                key={showcaseTab}
+                src={SHOWCASE_IMAGES[showcaseTab].src}
+                alt={SHOWCASE_IMAGES[showcaseTab].alt}
+                width={1440}
+                height={900}
+                className="w-full h-auto block"
+              />
             </div>
           </div>
         </div>
