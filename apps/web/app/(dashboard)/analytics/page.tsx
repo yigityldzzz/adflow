@@ -103,11 +103,12 @@ export default function AnalyticsPage() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const [overviewRes, timelineRes, countriesRes, devicesRes] = await Promise.allSettled([
+      const [overviewRes, timelineRes, countriesRes, devicesRes, sourcesRes] = await Promise.allSettled([
         api.get<{ overview: OverviewData }>('/api/analytics/overview'),
         api.get<{ timeline: TimelinePoint[] }>(`/api/analytics/timeline?days=${selectedDays}`),
         api.get<{ countries: Country[] }>('/api/analytics/top-countries'),
         api.get<{ devices: DeviceBreakdown[] }>('/api/analytics/devices'),
+        api.get<{ sources: UtmSource[] }>('/api/analytics/top-sources'),
       ]);
 
       if (overviewRes.status === 'fulfilled') {
@@ -132,7 +133,9 @@ export default function AnalyticsPage() {
           pct: d.percentage ?? d.pct ?? 0,
         })));
       }
-      setUtmSources([]);
+      if (sourcesRes.status === 'fulfilled') {
+        setUtmSources((sourcesRes.value as { sources: UtmSource[] }).sources ?? []);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

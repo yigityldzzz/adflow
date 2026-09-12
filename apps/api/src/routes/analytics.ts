@@ -432,6 +432,13 @@ router.get('/top-countries', async (req: AuthRequest, res: Response): Promise<vo
   res.json({ countries: grouped.map((g) => ({ countryCode: g.countryCode, country: g.country, clicks: g._count.id })) });
 });
 
+router.get('/top-sources', async (req: AuthRequest, res: Response): Promise<void> => {
+  const teamIds = await getTeamUserIds(req.user!.id);
+  const grouped = await prisma.click.groupBy({ by: ['utmSource'], where: { userId: { in: teamIds }, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 10 });
+  const total = grouped.reduce((s, g) => s + g._count.id, 0);
+  res.json({ sources: grouped.map((g) => ({ source: g.utmSource ?? '(direct)', clicks: g._count.id, pct: total > 0 ? Math.round((g._count.id / total) * 100 * 10) / 10 : 0 })) });
+});
+
 router.get('/devices', async (req: AuthRequest, res: Response): Promise<void> => {
   const teamIds = await getTeamUserIds(req.user!.id);
   const grouped = await prisma.click.groupBy({ by: ['device'], where: { userId: { in: teamIds }, isBot: false }, _count: { id: true }, orderBy: { _count: { id: 'desc' } } });
