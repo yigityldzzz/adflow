@@ -79,32 +79,35 @@
 }
 
 .tc-shine {
+  /* color-dodge blows out to solid white almost instantly over a light
+     screenshot (dashboard UI is white/near-white to begin with) — soft-light
+     tints without ever clipping the underlying content to unreadable white. */
   background-image:
     repeating-linear-gradient(
       -45deg,
-      rgba(99, 102, 241, 0.75) 0%,
-      rgba(139, 92, 246, 0.6) 8%,
-      rgba(236, 72, 153, 0.5) 16%,
-      rgba(99, 102, 241, 0.75) 24%
+      rgba(99, 102, 241, 0.4) 0%,
+      rgba(139, 92, 246, 0.32) 8%,
+      rgba(236, 72, 153, 0.26) 16%,
+      rgba(99, 102, 241, 0.4) 24%
     ),
-    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(0, 0%, 100%, 0.95) 5%, hsla(0, 0%, 100%, 0) 65%);
+    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(0, 0%, 100%, 0.4) 5%, hsla(0, 0%, 100%, 0) 55%);
   background-size:
     260% 260%,
     100% 100%;
   background-position:
     var(--pointer-x) var(--pointer-y),
     center;
-  mix-blend-mode: color-dodge;
-  filter: brightness(1.05) contrast(1.15) saturate(1.05);
+  mix-blend-mode: soft-light;
+  filter: saturate(1.1);
 }
 
 .tc-glare {
   background-image: radial-gradient(
     farthest-corner circle at var(--pointer-x) var(--pointer-y),
-    hsla(0, 0%, 100%, 0.35) 10%,
-    hsla(230, 40%, 30%, 0.15) 80%
+    hsla(0, 0%, 100%, 0.2) 10%,
+    hsla(230, 40%, 30%, 0.08) 80%
   );
-  mix-blend-mode: overlay;
+  mix-blend-mode: soft-light;
 }
 
 @media (hover: none), (pointer: coarse) {
