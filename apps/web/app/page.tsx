@@ -23,6 +23,7 @@ import {
   FileText,
   Bell,
   Download,
+  Github,
 } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -679,26 +680,67 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#e2e8f0] py-12">
+      <footer className="border-t border-[#e2e8f0] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center">
-                <Activity className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="text-base font-bold text-[#0f172a]">
-                Ad<span className="gradient-text">Flow</span>
-              </span>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+            <div className="col-span-2">
+              <Link href="/" className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center">
+                  <Activity className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-base font-bold text-[#0f172a]">
+                  Ad<span className="gradient-text">Flow</span>
+                </span>
+              </Link>
+              <p className="text-sm text-[#64748b] max-w-xs">
+                Self-hosted Meta Ads tracking and attribution — your infrastructure, your data.
+              </p>
             </div>
 
-            <div className="flex items-center gap-8 text-sm text-[#94a3b8]">
-              <Link href="/privacy" className="hover:text-[#64748b] transition-colors">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-[#64748b] transition-colors">Terms of Service</Link>
-              <a href="mailto:info@digitaladexpert.de" className="hover:text-[#64748b] transition-colors">Support</a>
+            <div>
+              <h4 className="text-sm font-semibold text-[#0f172a] mb-4">Product</h4>
+              <ul className="space-y-3 text-sm text-[#64748b]">
+                <li><a href="#features" className="hover:text-[#0f172a] transition-colors">Features</a></li>
+                <li><a href="#pricing" className="hover:text-[#0f172a] transition-colors">Pricing</a></li>
+                <li><a href={DEMO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#0f172a] transition-colors">Live Demo</a></li>
+                <li><Link href="/login" className="hover:text-[#0f172a] transition-colors">Sign In</Link></li>
+              </ul>
             </div>
 
+            <div>
+              <h4 className="text-sm font-semibold text-[#0f172a] mb-4">Company</h4>
+              <ul className="space-y-3 text-sm text-[#64748b]">
+                <li><a href="https://digitaladexpert.de" target="_blank" rel="noopener noreferrer" className="hover:text-[#0f172a] transition-colors">Digital Ad Expert</a></li>
+                <li>
+                  <a
+                    href="https://github.com/yigityldzzz/adflow"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-[#0f172a] transition-colors"
+                  >
+                    <Github className="w-3.5 h-3.5" />
+                    Source Code
+                  </a>
+                </li>
+                <li><a href="mailto:info@digitaladexpert.de" className="hover:text-[#0f172a] transition-colors">Contact</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-[#0f172a] mb-4">Legal</h4>
+              <ul className="space-y-3 text-sm text-[#64748b]">
+                <li><Link href="/privacy" className="hover:text-[#0f172a] transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-[#0f172a] transition-colors">Terms of Service</Link></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-[#94a3b8]">
               © 2026 AdFlow. All rights reserved.
+            </p>
+            <p className="text-sm text-[#94a3b8]">
+              Built by Digital Ad Expert
             </p>
           </div>
         </div>
