@@ -116,12 +116,14 @@ interface BrowserRow extends Record<string, unknown> {
 interface DashboardData {
   overview: Overview;
   timeline: TimelinePoint[];
-  campaigns: CampaignRow[];
-  countries: CountryRow[];
-  sources: SourceRow[];
-  devices: DeviceRow[];
-  os: OsRow[];
-  browsers: BrowserRow[];
+  details: {
+    campaigns: CampaignRow[];
+    countries: CountryRow[];
+    sources: SourceRow[];
+    devices: DeviceRow[];
+    os: OsRow[];
+    browsers: BrowserRow[];
+  };
 }
 
 // ─────────────────────────────────────────────
@@ -844,7 +846,7 @@ export default function DashboardPage() {
         {/* 1. Campaigns */}
         <DetailsTable<CampaignRow>
           title="Campaigns"
-          rows={data?.campaigns ?? []}
+          rows={data?.details?.campaigns ?? []}
           nameKey="name"
           nameLabel="Name"
           col2={{ key: 'clicks', label: 'Clicks' }}
@@ -857,7 +859,7 @@ export default function DashboardPage() {
         {/* 2. Traffic Sources */}
         <DetailsTable<SourceRow>
           title="Traffic Sources"
-          rows={data?.sources ?? []}
+          rows={data?.details?.sources ?? []}
           nameKey="source"
           nameLabel="Source"
           col2={{ key: 'clicks', label: 'Clicks' }}
@@ -870,7 +872,7 @@ export default function DashboardPage() {
         {/* 3. Countries */}
         <DetailsTable<CountryRow>
           title="Countries"
-          rows={data?.countries ?? []}
+          rows={data?.details?.countries ?? []}
           nameKey="country"
           nameLabel="Country"
           col2={{ key: 'clicks', label: 'Clicks' }}
@@ -883,7 +885,7 @@ export default function DashboardPage() {
         {/* 4. Devices */}
         <DetailsTable<DeviceRow>
           title="Devices"
-          rows={data?.devices ?? []}
+          rows={data?.details?.devices ?? []}
           nameKey="device"
           nameLabel="Device"
           col2={{ key: 'clicks', label: 'Clicks' }}
@@ -896,7 +898,7 @@ export default function DashboardPage() {
         {/* 5. OS */}
         <DetailsTable<OsRow>
           title="OS"
-          rows={data?.os ?? []}
+          rows={data?.details?.os ?? []}
           nameKey="os"
           nameLabel="OS"
           col2={{ key: 'clicks', label: 'Clicks' }}
@@ -909,7 +911,7 @@ export default function DashboardPage() {
         {/* 6. Browsers */}
         <DetailsTable<BrowserRow>
           title="Browsers"
-          rows={data?.browsers ?? []}
+          rows={data?.details?.browsers ?? []}
           nameKey="browser"
           nameLabel="Browser"
           col2={{ key: 'clicks', label: 'Clicks' }}
