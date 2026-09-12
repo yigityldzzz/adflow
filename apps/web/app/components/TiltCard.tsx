@@ -77,8 +77,8 @@ const TiltCardComponent = ({
         '--pointer-from-center': `${clamp(Math.hypot(percentY - 50, percentX - 50) / 50, 0, 1)}`,
         '--pointer-from-top': `${percentY / 100}`,
         '--pointer-from-left': `${percentX / 100}`,
-        '--rotate-x': `${round(-(centerX / 12))}deg`,
-        '--rotate-y': `${round(centerY / 10)}deg`,
+        '--rotate-x': `${round(-(centerX / 9))}deg`,
+        '--rotate-y': `${round(centerY / 7)}deg`,
       };
 
       for (const [k, v] of Object.entries(properties)) wrap.style.setProperty(k, v);
