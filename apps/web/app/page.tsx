@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
+import TiltCard from './components/TiltCard';
 import {
   Zap,
   Target,
@@ -25,6 +27,9 @@ import {
   Download,
   Github,
 } from 'lucide-react';
+
+// WebGL canvas — must never run during SSR/prerender.
+const Plasma = dynamic(() => import('./components/Plasma'), { ssr: false });
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
@@ -370,11 +375,22 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-24 overflow-hidden">
-        {/* Background glows */}
+        {/* Background — animated plasma in light mode, tuned low and slow so it
+            reads as texture, not a distraction from the headline/copy. */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#6366f1]/10 rounded-full blur-3xl" />
-          <div className="absolute -top-20 -right-40 w-80 h-80 bg-[#8b5cf6]/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#6366f1]/5 rounded-full blur-3xl" />
+          <Plasma
+            color="#6366f1"
+            speed={0.6}
+            direction="forward"
+            scale={1.3}
+            opacity={0.5}
+            mouseInteractive={false}
+            renderScale={0.5}
+            maxDpr={1.5}
+            targetFps={30}
+            iterations={40}
+            lightMode
+          />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -641,29 +657,32 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Mockup window — real screenshots, swapped per tab */}
+          {/* Mockup window — real screenshots, swapped per tab. Wrapped in a
+              pointer-tracked tilt + foil-shine card (desktop/mouse only) so
+              the flagship visual on the page feels touched, not just pasted. */}
           <div className="relative max-w-5xl mx-auto">
-            <div className="absolute inset-0 bg-gradient-to-t from-[#6366f1]/15 to-transparent rounded-2xl blur-xl" />
-            <div className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-2xl">
-              {/* Browser chrome */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc]">
-                <div className="w-3 h-3 rounded-full bg-[#ef4444]/60" />
-                <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
-                <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
-                <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
-                  {SHOWCASE_IMAGES[showcaseTab].path}
+            <TiltCard behindGlowColor="rgba(99, 102, 241, 0.4)">
+              <div className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-2xl">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc]">
+                  <div className="w-3 h-3 rounded-full bg-[#ef4444]/60" />
+                  <div className="w-3 h-3 rounded-full bg-[#f59e0b]/60" />
+                  <div className="w-3 h-3 rounded-full bg-[#10b981]/60" />
+                  <div className="flex-1 mx-4 bg-[#e2e8f0] rounded-md px-3 py-1 text-xs text-[#94a3b8]">
+                    {SHOWCASE_IMAGES[showcaseTab].path}
+                  </div>
                 </div>
-              </div>
 
-              <Image
-                key={showcaseTab}
-                src={SHOWCASE_IMAGES[showcaseTab].src}
-                alt={SHOWCASE_IMAGES[showcaseTab].alt}
-                width={1440}
-                height={900}
-                className="w-full h-auto block"
-              />
-            </div>
+                <Image
+                  key={showcaseTab}
+                  src={SHOWCASE_IMAGES[showcaseTab].src}
+                  alt={SHOWCASE_IMAGES[showcaseTab].alt}
+                  width={1440}
+                  height={900}
+                  className="w-full h-auto block"
+                />
+              </div>
+            </TiltCard>
           </div>
         </div>
       </section>
