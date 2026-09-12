@@ -31,78 +31,118 @@ const NAV_LINKS = [
   { label: 'Pricing', href: '#pricing' },
 ];
 
-const FEATURES = [
+// Every feature grouped into the 3-act story a performance marketer actually
+// lives through: capture the data, understand it, then let the system watch
+// it for you. Same 9 features as before — just told as a narrative instead
+// of a flat grid, each act with its own accent color.
+const FEATURE_ACTS = [
   {
-    icon: <Zap className="w-6 h-6" />,
-    title: 'Instant Redirect Tracking',
+    key: 'track',
+    eyebrow: 'Track',
+    accent: '#6366f1',
+    title: 'Capture every signal',
     description:
-      'Sub-50ms redirect latency ensures seamless user experience while capturing every click with full attribution data.',
-    color: 'from-yellow-500/20 to-orange-500/20',
-    iconColor: 'text-yellow-400',
+      'Every click, every visitor, every conversion — captured the moment it happens, with full attribution attached.',
+    items: [
+      {
+        icon: <Zap className="w-5 h-5" />,
+        title: 'Instant Redirect Tracking',
+        description:
+          'Sub-50ms redirect latency ensures a seamless user experience while capturing every click with full attribution data.',
+      },
+      {
+        icon: <Target className="w-5 h-5" />,
+        title: 'Precise Click Attribution',
+        description:
+          'Every conversion is linked back to its originating click — visitor data, UTM parameters, and click IDs (fbclid, gclid, ttclid) captured automatically.',
+      },
+      {
+        icon: <Link2 className="w-5 h-5" />,
+        title: 'Conversion Postbacks',
+        description:
+          'Server-to-server postback URLs enable accurate conversion tracking even with iOS privacy changes and ad blockers.',
+      },
+    ],
   },
   {
-    icon: <Target className="w-6 h-6" />,
-    title: 'Precise Click Attribution',
+    key: 'optimize',
+    eyebrow: 'Optimize',
+    accent: '#8b5cf6',
+    title: 'See what’s actually working',
     description:
-      'Every conversion is linked back to its originating click — full visitor data, UTM parameters, and click IDs (fbclid, gclid, ttclid) captured automatically.',
-    color: 'from-indigo-500/20 to-blue-500/20',
-    iconColor: 'text-indigo-400',
+      'Real-time dashboards and exportable reports turn raw click data into decisions you can act on today, not next week.',
+    items: [
+      {
+        icon: <BarChart3 className="w-5 h-5" />,
+        title: 'Real-Time Analytics',
+        description:
+          'Live dashboards with second-by-second click data, conversion funnels, and performance metrics across all campaigns.',
+      },
+      {
+        icon: <FileText className="w-5 h-5" />,
+        title: 'Reports & CSV Export',
+        description:
+          'Generate campaign performance reports with daily breakdowns and export raw click data to CSV with one click.',
+      },
+      {
+        icon: <Wrench className="w-5 h-5" />,
+        title: 'UTM Builder',
+        description:
+          'Build UTM-tagged tracking URLs in seconds with one-click presets for Meta, Google, TikTok and email campaigns.',
+      },
+    ],
   },
   {
-    icon: <Bot className="w-6 h-6" />,
-    title: 'Automated Performance Alerts',
+    key: 'automate',
+    eyebrow: 'Automate',
+    accent: '#f43f5e',
+    title: 'Let the system catch problems for you',
     description:
-      'Automatic detection of ad fatigue, CPA spikes, and traffic anomalies — surfaced as clear alerts so you catch problems before they cost you.',
-    color: 'from-violet-500/20 to-purple-500/20',
-    iconColor: 'text-violet-400',
+      'Automated alerts and fraud detection work around the clock, flagging issues before they quietly drain your budget.',
+    items: [
+      {
+        icon: <Bot className="w-5 h-5" />,
+        title: 'Automated Performance Alerts',
+        description:
+          'Automatic detection of ad fatigue, CPA spikes, and traffic anomalies — surfaced as clear alerts so you catch problems before they cost you.',
+      },
+      {
+        icon: <Shield className="w-5 h-5" />,
+        title: 'Bot & Fraud Detection',
+        description:
+          'Advanced fingerprinting and behavioral analysis filter out bot traffic, saving your budget for real potential customers.',
+      },
+      {
+        icon: <Bell className="w-5 h-5" />,
+        title: 'Smart Alerts',
+        description:
+          'Set threshold rules on clicks, conversions, revenue or bot rate. Get instantly notified when something looks off.',
+      },
+    ],
+  },
+];
+
+// "Who it's for" — real personas the product genuinely serves today, backed
+// by actual features (team/multi-user access, self-hosted deployment) rather
+// than verticals AdFlow doesn't build for.
+const PERSONAS = [
+  {
+    icon: <MousePointerClick className="w-6 h-6" />,
+    title: 'Solo performance marketers',
+    description:
+      'Running your own Meta campaigns and tired of guessing which ad actually drove the sale? Get click-level attribution without paying per-click SaaS fees or handing your pixel data to a third party.',
+  },
+  {
+    icon: <Globe className="w-6 h-6" />,
+    title: 'Small agencies & teams',
+    description:
+      'Manage every client’s campaigns from one dashboard, invite teammates with scoped access, and keep each client’s tracking data cleanly separated on infrastructure you control.',
   },
   {
     icon: <Shield className="w-6 h-6" />,
-    title: 'Bot & Fraud Detection',
+    title: 'Privacy-conscious brands',
     description:
-      'Advanced fingerprinting and behavioral analysis filter out bot traffic, saving your budget for real potential customers.',
-    color: 'from-red-500/20 to-pink-500/20',
-    iconColor: 'text-red-400',
-  },
-  {
-    icon: <BarChart3 className="w-6 h-6" />,
-    title: 'Real-Time Analytics',
-    description:
-      'Live dashboards with second-by-second click data, conversion funnels, and performance metrics across all campaigns.',
-    color: 'from-green-500/20 to-emerald-500/20',
-    iconColor: 'text-emerald-400',
-  },
-  {
-    icon: <Link2 className="w-6 h-6" />,
-    title: 'Conversion Postbacks',
-    description:
-      'Server-to-server postback URLs enable accurate conversion tracking even with iOS privacy changes and ad blockers.',
-    color: 'from-cyan-500/20 to-teal-500/20',
-    iconColor: 'text-cyan-400',
-  },
-  {
-    icon: <Wrench className="w-6 h-6" />,
-    title: 'UTM Builder',
-    description:
-      'Build UTM-tagged tracking URLs in seconds with one-click presets for Meta, Google, TikTok and email campaigns.',
-    color: 'from-orange-500/20 to-amber-500/20',
-    iconColor: 'text-orange-400',
-  },
-  {
-    icon: <FileText className="w-6 h-6" />,
-    title: 'Reports & CSV Export',
-    description:
-      'Generate campaign performance reports with daily breakdowns and export raw click data to CSV with one click.',
-    color: 'from-sky-500/20 to-blue-500/20',
-    iconColor: 'text-sky-400',
-  },
-  {
-    icon: <Bell className="w-6 h-6" />,
-    title: 'Smart Alerts',
-    description:
-      'Set threshold rules on clicks, conversions, revenue or bot rate. Get instantly notified when something looks off.',
-    color: 'from-rose-500/20 to-pink-500/20',
-    iconColor: 'text-rose-400',
+      'If you don’t want conversion data flowing through someone else’s servers, self-hosting is the point, not an afterthought. Deploy AdFlow on your own VPS and own every byte of it.',
   },
 ];
 
@@ -338,6 +378,19 @@ export default function LandingPage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Trust badge — the one claim a hosted SaaS competitor can't make */}
+          <div className="mb-4">
+            <a
+              href="https://github.com/yigityldzzz/adflow"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+            >
+              <Github className="w-3.5 h-3.5" />
+              Open-source & self-hosted — your data never leaves your server
+            </a>
+          </div>
+
           {/* Announcement badge */}
           <div className="inline-flex items-center gap-2 bg-[#ffffff] border border-[#e2e8f0] rounded-full px-4 py-1.5 text-sm text-[#64748b] mb-8">
             <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse-slow" />
@@ -429,7 +482,40 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Who it's for */}
+      <section className="py-24 bg-[#ffffff]/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <span className="inline-block text-xs font-semibold text-[#8b5cf6] uppercase tracking-widest mb-4 bg-[#8b5cf6]/10 px-3 py-1 rounded-full border border-[#8b5cf6]/20">
+              Built for
+            </span>
+            <h2 className="text-4xl font-bold text-[#0f172a] mb-4">
+              Whoever is <span className="gradient-text">running the ads</span>
+            </h2>
+            <p className="text-[#64748b] max-w-xl mx-auto">
+              Different teams, same problem: knowing which click actually made you money.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {PERSONAS.map((persona) => (
+              <div
+                key={persona.title}
+                className="bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-7 hover:border-[#6366f1]/40 transition-all duration-300"
+              >
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#6366f1]/10 text-[#6366f1] mb-5">
+                  {persona.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-[#0f172a] mb-3">{persona.title}</h3>
+                <p className="text-sm text-[#64748b] leading-relaxed">{persona.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section — told as the 3-act story every marketer lives:
+          capture the data, understand it, then let the system watch it. */}
       <section id="features" className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -445,17 +531,47 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((feature) => (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {FEATURE_ACTS.map((act) => (
               <div
-                key={feature.title}
-                className="group relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6 hover:border-[#6366f1]/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/5"
+                key={act.key}
+                className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-7 overflow-hidden"
               >
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} mb-4`}>
-                  <span className={feature.iconColor}>{feature.icon}</span>
-                </div>
-                <h3 className="text-base font-semibold text-[#0f172a] mb-2">{feature.title}</h3>
-                <p className="text-sm text-[#64748b] leading-relaxed">{feature.description}</p>
+                <div
+                  className="absolute top-0 left-0 right-0 h-1"
+                  style={{ background: act.accent }}
+                />
+
+                <span
+                  className="inline-block text-xs font-bold uppercase tracking-widest mb-4 px-3 py-1 rounded-full border"
+                  style={{
+                    color: act.accent,
+                    backgroundColor: `${act.accent}1a`,
+                    borderColor: `${act.accent}33`,
+                  }}
+                >
+                  {act.eyebrow}
+                </span>
+
+                <h3 className="text-xl font-bold text-[#0f172a] mb-2">{act.title}</h3>
+                <p className="text-sm text-[#64748b] leading-relaxed mb-6">{act.description}</p>
+
+                <ul className="space-y-5">
+                  {act.items.map((item) => (
+                    <li key={item.title} className="flex gap-3">
+                      <div
+                        className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg mt-0.5"
+                        style={{ color: act.accent, backgroundColor: `${act.accent}1a` }}
+                      >
+                        {item.icon}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-[#0f172a] mb-1">{item.title}</h4>
+                        <p className="text-xs text-[#64748b] leading-relaxed">{item.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
