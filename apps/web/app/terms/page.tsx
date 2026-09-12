@@ -61,10 +61,13 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-bold text-[#0f172a] mb-3">4. Plans and current status</h2>
             <p>
-              AdFlow currently offers a Free plan with the limits shown on our pricing page (tracking links,
-              campaigns, and monthly click volume). Paid Pro and Team plans are in development and marked
-              &ldquo;Coming Soon&rdquo; — no payment is currently collected for them, and pricing/features may change
-              before launch. We will give notice before any paid plan becomes chargeable.
+              AdFlow&rsquo;s Free plan is available today with the limits shown on our pricing page (tracking links,
+              campaigns, and monthly click volume). Every new account also starts with a 7-day trial of Pro
+              features, no credit card required. Pro ($49/month) and Team ($149/month) are shown with their
+              pricing and features, but our payment processor is still being finalized — no card payment is
+              currently collected, and pricing/features may change before paid billing goes live. If your trial
+              ends before paid billing is available, your account automatically returns to the Free plan. We will
+              give notice before any paid plan becomes chargeable.
             </p>
           </section>
 
