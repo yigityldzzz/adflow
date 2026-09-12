@@ -132,6 +132,7 @@ const PLANS = [
     price: '$0',
     period: '/month',
     description: 'Perfect for testing and small campaigns',
+    featuresIntro: null as string | null,
     features: [
       '10,000 clicks/month',
       '3 tracking links',
@@ -142,17 +143,17 @@ const PLANS = [
     ],
     cta: 'Get Started Free',
     highlighted: false,
-    badge: null,
+    badge: null as string | null,
     comingSoon: false,
   },
   {
     name: 'Pro',
-    price: null,
+    price: '$49',
     period: '/month',
     description: 'For serious performance marketers',
+    featuresIntro: 'Everything in Free, plus:' as string | null,
     features: [
-      'Unlimited clicks/month',
-      'Unlimited tracking links',
+      'Unlimited clicks & tracking links',
       'Unlimited campaigns',
       'AI insights & anomaly detection',
       'Conversion postbacks',
@@ -160,30 +161,29 @@ const PLANS = [
       '1-year data retention',
       'Priority email support',
     ],
-    cta: 'Coming Soon',
+    cta: 'Start 7-Day Free Trial',
     highlighted: true,
-    badge: 'Coming Soon',
-    comingSoon: true,
+    badge: 'Most Popular' as string | null,
+    comingSoon: false,
   },
   {
     name: 'Team',
-    price: null,
+    price: '$149',
     period: '/month',
     description: 'For agencies and large teams',
+    featuresIntro: 'Everything in Pro, plus:' as string | null,
     features: [
-      'Unlimited clicks/month',
-      'Unlimited everything',
-      'Multi-user access',
+      'Multi-user access & permissions',
       'Custom attribution windows',
       'White-label reports',
       'API access',
       'Unlimited data retention',
       'Dedicated Slack support',
     ],
-    cta: 'Coming Soon',
+    cta: 'Start 7-Day Free Trial',
     highlighted: false,
-    badge: 'Coming Soon',
-    comingSoon: true,
+    badge: null as string | null,
+    comingSoon: false,
   },
 ];
 
@@ -562,7 +562,7 @@ export default function LandingPage() {
               Simple, transparent pricing
             </h2>
             <p className="text-[#64748b]">
-              Start free today. Paid plans are coming soon — pricing will be announced shortly.
+              Start free, no credit card required. Every paid plan starts with a 7-day free trial.
             </p>
           </div>
 
@@ -607,6 +607,12 @@ export default function LandingPage() {
                   )}
                 </div>
 
+                {plan.featuresIntro && (
+                  <p className="text-xs font-semibold text-[#6366f1] uppercase tracking-wide mb-3">
+                    {plan.featuresIntro}
+                  </p>
+                )}
+
                 <ul className="space-y-3 flex-1 mb-7">
                   {plan.features.map((feat) => (
                     <li key={feat} className="flex items-center gap-3 text-sm text-[#64748b]">
@@ -616,18 +622,16 @@ export default function LandingPage() {
                   ))}
                 </ul>
 
-                {plan.comingSoon ? (
-                  <div className="w-full text-center py-3 rounded-xl text-sm font-semibold bg-[#e2e8f0] border border-[#cbd5e1] text-[#94a3b8] cursor-not-allowed select-none">
-                    Coming Soon
-                  </div>
-                ) : (
-                  <Link
-                    href="/register"
-                    className="w-full text-center py-3 rounded-xl text-sm font-semibold transition-all duration-200 bg-[#e2e8f0] hover:bg-[#cbd5e1] text-[#0f172a] border border-[#e2e8f0]"
-                  >
-                    {plan.cta}
-                  </Link>
-                )}
+                <Link
+                  href="/register"
+                  className={`w-full text-center py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                    plan.highlighted
+                      ? 'bg-[#6366f1] hover:bg-[#5558e3] text-white shadow-lg shadow-indigo-500/25'
+                      : 'bg-[#e2e8f0] hover:bg-[#cbd5e1] text-[#0f172a] border border-[#e2e8f0]'
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
               </div>
             ))}
           </div>

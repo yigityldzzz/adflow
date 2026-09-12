@@ -66,12 +66,19 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
   const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+  // Every new signup gets a 7-day, no-card-required Pro trial. It downgrades
+  // to Free automatically (getEffectivePlan / the auto-expire block in GET
+  // /me) unless the user starts a real subscription first.
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
   const user = await prisma.user.create({
-    data: { email, password: hashed, name },
-    select: { id: true, email: true, name: true, plan: true, role: true, createdAt: true },
+    data: { email, password: hashed, name, trialPlan: Plan.PRO, trialEndsAt },
+    select: { id: true, email: true, name: true, plan: true, role: true, createdAt: true, trialPlan: true, trialEndsAt: true },
   });
 
-  const accessToken = signAccessToken({ id: user.id, email: user.email, plan: user.plan, role: user.role });
+  const effectivePlan = getEffectivePlan(user);
+  const accessToken = signAccessToken({ id: user.id, email: user.email, plan: effectivePlan, role: user.role });
   const refreshTokenValue = signRefreshToken({ id: user.id });
 
   await prisma.refreshToken.create({
@@ -82,7 +89,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  res.status(201).json({ user, accessToken, refreshToken: refreshTokenValue });
+  res.status(201).json({
+    user: { ...user, plan: effectivePlan, trial: { plan: user.trialPlan, endsAt: user.trialEndsAt } },
+    accessToken,
+    refreshToken: refreshTokenValue,
+  });
 });
 
 // POST /api/auth/login
