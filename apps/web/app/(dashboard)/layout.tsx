@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearAuth, getToken, isImpersonating, stopImpersonation } from '@/lib/auth';
-import { ToastContainer } from '@/components/Toast';
+import { ToastContainer, toast } from '@/components/Toast';
 
 interface User {
   id: string;
@@ -102,7 +102,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  async function handleUpgrade() {
+    setUpgrading(true);
+    try {
+      const res = await api.post<{ url: string }>('/api/billing/checkout', { plan: 'PRO' });
+      window.location.href = res.url;
+    } catch (err) {
+      toast({ type: 'error', title: err instanceof Error ? err.message : 'Could not start checkout' });
+      setUpgrading(false);
+    }
+  }
 
   useEffect(() => {
     setImpersonating(isImpersonating());
@@ -195,7 +207,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentPage = NAV_ITEMS.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const pageTitle = currentPage?.label || 'Dashboard';
 
-  const plan = user?.plan || 'free';
+  // API returns the Prisma enum verbatim ('FREE'/'PRO'/'TEAM') — normalize to
+  // lowercase here since PLAN_COLORS keys and the `plan === 'free'` check
+  // below assume lowercase. Without this, the upgrade prompt never renders
+  // and every plan badge silently falls back to the Free color.
+  const plan = (user?.plan || 'free').toLowerCase();
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
 
   const SidebarContent = ({ isCollapsed }: { isCollapsed: boolean }) => (
@@ -273,8 +289,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-[10px] text-[#64748b] mb-2.5 leading-relaxed">
             Unlock unlimited links, AI insights, and 1M clicks/month.
           </p>
-          <button className="w-full text-xs font-medium bg-[#6366f1] hover:bg-[#5558e3] text-white py-1.5 rounded-lg transition-colors">
-            Upgrade for $49/mo
+          <button
+            onClick={handleUpgrade}
+            disabled={upgrading}
+            className="w-full text-xs font-medium bg-[#6366f1] hover:bg-[#5558e3] disabled:opacity-60 text-white py-1.5 rounded-lg transition-colors"
+          >
+            {upgrading ? 'Redirecting…' : 'Upgrade for $49/mo'}
           </button>
         </div>
       )}
