@@ -437,7 +437,7 @@ export default function LandingPage() {
             </span>
             <h2 className="text-4xl font-bold text-[#0f172a] mb-4">
               Everything you need to{' '}
-              <span className="gradient-text">track smarter</span>
+              <span className="gradient-text shine-text">track smarter</span>
             </h2>
             <p className="text-[#64748b] max-w-xl mx-auto">
               Built for performance marketers who need precision attribution and real-time insights to optimize every campaign.
