@@ -23,6 +23,7 @@ import organizationsRouter from './routes/organizations';
 import domainsRouter from './routes/domains';
 import adAccountsRouter from './routes/adAccounts';
 import redirectRouter from './tracking/redirect';
+import billingRouter, { webhookRouter } from './routes/billing';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
 import { syncAllMetaAdAccounts } from './services/adAccountScheduler';
@@ -55,7 +56,16 @@ app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── Body Parsing ──────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '1mb' }));
+// `verify` stashes the raw bytes on the request so the Lemon Squeezy webhook
+// handler can check the X-Signature HMAC before trusting the parsed body.
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
@@ -83,6 +93,8 @@ const authLimiter = rateLimit({
 
 // Tracking redirect — no rate limit, no auth
 app.use('/r', redirectRouter);
+// Lemon Squeezy calls this directly — public, verified by HMAC signature, not user auth
+app.use('/api/webhooks', webhookRouter);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -107,6 +119,7 @@ app.use('/api/notifications', generalLimiter, notificationsRouter);
 app.use('/api/organizations', generalLimiter, organizationsRouter);
 app.use('/api/domains', generalLimiter, domainsRouter);
 app.use('/api/ad-accounts', generalLimiter, adAccountsRouter);
+app.use('/api/billing', generalLimiter, billingRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

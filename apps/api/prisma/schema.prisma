@@ -52,6 +52,10 @@ model User {
   apiKey        String?        @unique
   trialPlan     Plan?
   trialEndsAt   DateTime?
+  lsCustomerId     String?
+  lsSubscriptionId String?   @unique
+  lsVariantId      String?
+  lsStatus         String?
   createdAt     DateTime       @default(now())
   refreshTokens RefreshToken[]
   campaigns     Campaign[]
