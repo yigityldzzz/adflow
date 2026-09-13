@@ -124,7 +124,7 @@ export default function ReportsPage() {
     try {
       const [ovRes, campRes, tlRes] = await Promise.allSettled([
         api.get<{ overview: Overview; changes: Changes }>('/api/analytics/overview'),
-        api.get<{ campaigns: CampaignRow[] }>('/api/analytics/by-campaign'),
+        api.get<{ campaigns: CampaignRow[] }>(`/api/analytics/by-campaign?days=${d}`),
         api.get<{ timeline: TimelinePoint[] }>(`/api/analytics/timeline?days=${d}`),
       ]);
       if (ovRes.status === 'fulfilled') {

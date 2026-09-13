@@ -3,6 +3,8 @@ import { UAParser } from 'ua-parser-js';
 import { prisma } from '../config/database';
 import { detectBot } from '../services/botDetection';
 import { lookupGeo } from '../services/geoip';
+import { getTeamUserIds } from '../services/team';
+import { limitFor, PlanTier } from '../config/planLimits';
 import { randomBytes } from 'crypto';
 function nanoid(size = 21) { return randomBytes(Math.ceil(size * 3/4)).toString('base64url').slice(0, size); }
 
@@ -166,10 +168,28 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
     where: { slug },
     include: {
       campaign: { select: { id: true, flowId: true, status: true } },
+      user: { select: { plan: true } },
     },
   });
 
   if (!link) { res.status(404).send('Not found'); return; }
+
+  // Free plan has a monthly click cap. The visitor is still redirected either
+  // way (breaking real ad traffic over a soft plan limit would hurt the
+  // customer's own funnel) — once over the cap we just stop writing new
+  // clicks to the DB, so reporting caps out and nudges toward upgrading.
+  const planLimits = limitFor((link.user?.plan as PlanTier) ?? 'FREE');
+  let shouldRecord = true;
+  if (planLimits.maxClicksPerMonth !== null) {
+    const teamIds = await getTeamUserIds(link.userId);
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const clicksThisMonth = await prisma.click.count({
+      where: { userId: { in: teamIds }, timestamp: { gte: startOfMonth } },
+    });
+    shouldRecord = clicksThisMonth < planLimits.maxClicksPerMonth;
+  }
 
   const ip = getRealIp(req);
   const userAgentString = req.headers['user-agent'] ?? '';
@@ -224,26 +244,28 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   if (isBot) {
     res.status(200).type('text/plain').send('');
 
-    prisma.click.create({
-      data: {
-        linkId: link.id,
-        campaignId: link.campaignId ?? null,
-        userId: link.userId,
-        visitorId,
-        utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-        fbclid, gclid, ttclid, sccid, externalClickId,
-        ip,
-        country:      geo.country      ?? null,
-        countryCode:  geo.countryCode  ?? null,
-        city:         geo.city         ?? null,
-        region:       geo.region       ?? null,
-        browser, browserVersion, os,
-        device:   deviceType,
-        language, referrer: referrer ?? null,
-        userAgent: userAgentString || null,
-        isBot: true, isSuspicious, isUnique: false,
-      },
-    }).catch(() => {});
+    if (shouldRecord) {
+      prisma.click.create({
+        data: {
+          linkId: link.id,
+          campaignId: link.campaignId ?? null,
+          userId: link.userId,
+          visitorId,
+          utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+          fbclid, gclid, ttclid, sccid, externalClickId,
+          ip,
+          country:      geo.country      ?? null,
+          countryCode:  geo.countryCode  ?? null,
+          city:         geo.city         ?? null,
+          region:       geo.region       ?? null,
+          browser, browserVersion, os,
+          device:   deviceType,
+          language, referrer: referrer ?? null,
+          userAgent: userAgentString || null,
+          isBot: true, isSuspicious, isUnique: false,
+        },
+      }).catch(() => {});
+    }
     return;
   }
 
@@ -255,26 +277,28 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   if (link.campaign?.status === 'PAUSED') {
     res.status(200).type('text/plain').send('');
 
-    prisma.click.create({
-      data: {
-        linkId: link.id,
-        campaignId: link.campaignId ?? null,
-        userId: link.userId,
-        visitorId,
-        utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
-        fbclid, gclid, ttclid, sccid, externalClickId,
-        ip,
-        country:      geo.country      ?? null,
-        countryCode:  geo.countryCode  ?? null,
-        city:         geo.city         ?? null,
-        region:       geo.region       ?? null,
-        browser, browserVersion, os,
-        device:   deviceType,
-        language, referrer: referrer ?? null,
-        userAgent: userAgentString || null,
-        isBot: false, isSuspicious, isUnique: false,
-      },
-    }).catch(() => {});
+    if (shouldRecord) {
+      prisma.click.create({
+        data: {
+          linkId: link.id,
+          campaignId: link.campaignId ?? null,
+          userId: link.userId,
+          visitorId,
+          utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+          fbclid, gclid, ttclid, sccid, externalClickId,
+          ip,
+          country:      geo.country      ?? null,
+          countryCode:  geo.countryCode  ?? null,
+          city:         geo.city         ?? null,
+          region:       geo.region       ?? null,
+          browser, browserVersion, os,
+          device:   deviceType,
+          language, referrer: referrer ?? null,
+          userAgent: userAgentString || null,
+          isBot: false, isSuspicious, isUnique: false,
+        },
+      }).catch(() => {});
+    }
     return;
   }
 
@@ -307,6 +331,8 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   }
 
   res.redirect(302, destinationUrl);
+
+  if (!shouldRecord) return;
 
   // Async DB write
   // Check uniqueness: has this visitor already clicked this link in the last 24h?

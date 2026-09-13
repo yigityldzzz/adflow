@@ -55,7 +55,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
       where: { userId: { in: teamIds }, timestamp: { gte: start, lte: end } },
       select: {
         value: true, timestamp: true,
-        click: { select: { country: true, countryCode: true, utmSource: true, device: true, os: true } },
+        click: { select: { country: true, countryCode: true, utmSource: true, device: true, os: true, browser: true } },
       },
     }),
     prisma.conversion.aggregate({
@@ -265,9 +265,22 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
     ex.clicks++;
     browserMap.set(key, ex);
   }
-  const browserDetails = Array.from(browserMap.entries()).map(([browser, c]) => ({
-    browser, clicks: c.clicks, conversions: 0, revenue: 0, profit: 0, cr: 0,
-  })).sort((a, b) => b.clicks - a.clicks);
+  const browserConvMap = new Map<string, { conversions: number; revenue: number }>();
+  for (const conv of conversions) {
+    const key = conv.click?.browser ?? 'Unknown';
+    const ex = browserConvMap.get(key) ?? { conversions: 0, revenue: 0 };
+    ex.conversions++; ex.revenue += conv.value;
+    browserConvMap.set(key, ex);
+  }
+  const browserDetails = Array.from(browserMap.entries()).map(([browser, c]) => {
+    const convData = browserConvMap.get(browser) ?? { conversions: 0, revenue: 0 };
+    return {
+      browser, clicks: c.clicks, conversions: convData.conversions,
+      revenue: Math.round(convData.revenue * 100) / 100,
+      profit: Math.round(convData.revenue * 100) / 100,
+      cr: c.clicks > 0 ? Math.round((convData.conversions / c.clicks) * 100 * 100) / 100 : 0,
+    };
+  }).sort((a, b) => b.clicks - a.clicks);
 
   res.json({
     overview: {
@@ -421,14 +434,38 @@ router.get('/timeline', async (req: AuthRequest, res: Response): Promise<void> =
 
 router.get('/by-campaign', async (req: AuthRequest, res: Response): Promise<void> => {
   const teamIds = await getTeamUserIds(req.user!.id);
-  const campaigns = await prisma.campaign.findMany({
-    where: { userId: { in: teamIds } },
-    include: { _count: { select: { clicks: true } }, links: { include: { conversions: { select: { value: true, type: true } } } } },
-    orderBy: { createdAt: 'desc' },
-  });
+
+  // `days` is optional — the Reports page's "Last 7/30/90 days" selector
+  // passes it; omitting it keeps the old lifetime-totals behavior for any
+  // other caller.
+  const daysParam = parseInt((req.query.days as string) ?? '', 10);
+  const rangeStart = Number.isFinite(daysParam) && daysParam > 0
+    ? new Date(Date.now() - daysParam * 24 * 60 * 60 * 1000)
+    : null;
+  const clickWhere = rangeStart ? { timestamp: { gte: rangeStart } } : {};
+
+  const [campaigns, spendRows] = await Promise.all([
+    prisma.campaign.findMany({
+      where: { userId: { in: teamIds } },
+      include: {
+        _count: { select: { clicks: { where: clickWhere } } },
+        links: { include: { conversions: { where: clickWhere, select: { value: true, type: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    rangeStart
+      ? prisma.campaignSpend.groupBy({
+          by: ['campaignId'],
+          where: { campaign: { userId: { in: teamIds } }, date: { gte: rangeStart } },
+          _sum: { cost: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  const costByCampaign = spendRows ? new Map(spendRows.map((r) => [r.campaignId, r._sum.cost ?? 0])) : null;
+
   const result = campaigns.map((c) => {
     const totalClicks=c._count.clicks, allConversions=c.links.flatMap((l)=>l.conversions), totalConversions=allConversions.length;
-    const revenue=allConversions.reduce((s,cv)=>s+cv.value,0), cost=c.cost??0, profit=revenue-cost;
+    const revenue=allConversions.reduce((s,cv)=>s+cv.value,0), cost=costByCampaign ? (costByCampaign.get(c.id) ?? 0) : (c.cost??0), profit=revenue-cost;
     const roas=cost>0&&revenue>0?revenue/cost:null, cpa=totalConversions>0&&cost>0?cost/totalConversions:null, cr=totalClicks>0?(totalConversions/totalClicks)*100:0;
     return { id:c.id, name:c.name, status:c.status, budget:c.budget, cost, revenue:Math.round(revenue*100)/100, profit:Math.round(profit*100)/100, roas:roas!==null?Math.round(roas*100)/100:null, cpa:cpa!==null?Math.round(cpa*100)/100:null, conversionRate:Math.round(cr*100)/100, totalClicks, totalConversions };
   });

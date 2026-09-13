@@ -3,7 +3,7 @@ export type PlanTier = 'FREE' | 'PRO' | 'TEAM';
 interface PlanLimits {
   maxCampaigns: number | null; // null = unlimited
   maxLinks: number | null;
-  maxClicksPerMonth: number | null; // tracked for future usage-based alerts; not enforced at redirect time
+  maxClicksPerMonth: number | null; // enforced in tracking/redirect.ts — over the cap, clicks still redirect but stop being recorded
   retentionDays: number | null; // null = unlimited retention (never auto-deleted)
 }
 
