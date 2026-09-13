@@ -42,7 +42,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
   const prevStart = new Date(start.getTime() - duration);
   const prevEnd = new Date(start.getTime() - 1);
 
-  const [clicks, prevClicks, conversions, prevConversions, campaigns] = await Promise.all([
+  const [clicks, prevClicks, conversions, prevConversions, campaigns, spendRows] = await Promise.all([
     prisma.click.findMany({
       where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: start, lte: end } },
       select: {
@@ -65,7 +65,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
     prisma.campaign.findMany({
       where: { userId: { in: teamIds } },
       select: {
-        id: true, name: true, source: true, status: true, cost: true,
+        id: true, name: true, source: true, status: true,
         trafficSourceId: true,
         trafficSource: { select: { id: true, name: true, platform: true } },
         links: {
@@ -78,7 +78,14 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
         _count: { select: { clicks: { where: { isBot: false, timestamp: { gte: start, lte: end } } } } },
       },
     }),
+    prisma.campaignSpend.groupBy({
+      by: ['campaignId'],
+      where: { campaign: { userId: { in: teamIds } }, date: { gte: start, lte: end } },
+      _sum: { cost: true },
+    }),
   ]);
+
+  const costByCampaign = new Map(spendRows.map((r) => [r.campaignId, r._sum.cost ?? 0]));
 
   const totalClicks = clicks.length;
   const uniqueVisitors = new Set(clicks.map((c) => c.visitorId)).size;
@@ -86,7 +93,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
   const suspiciousRate = totalClicks > 0 ? Math.round((suspiciousClicks / totalClicks) * 100 * 10) / 10 : 0;
   const revenue = conversions.reduce((s, c) => s + c.value, 0);
   const totalConversions = conversions.length;
-  const totalCost = campaigns.reduce((s, c) => s + (c.cost ?? 0), 0);
+  const totalCost = campaigns.reduce((s, c) => s + (costByCampaign.get(c.id) ?? 0), 0);
   const profit = revenue - totalCost;
   const roi = totalCost > 0 ? ((profit / totalCost) * 100) : null;
   const roas = totalCost > 0 && revenue > 0 ? revenue / totalCost : null;
@@ -128,7 +135,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response): Promise<void> 
     const cClicks = c._count.clicks;
     const cConversions = c.links.flatMap((l) => l.conversions);
     const cRevenue = cConversions.reduce((s, cv) => s + cv.value, 0);
-    const cCost = c.cost ?? 0;
+    const cCost = costByCampaign.get(c.id) ?? 0;
     const cProfit = cRevenue - cCost;
     const cROI = cCost > 0 ? (cProfit / cCost) * 100 : null;
     const cCR = cClicks > 0 ? (cConversions.length / cClicks) * 100 : 0;
@@ -367,7 +374,9 @@ router.get('/overview', async (req: AuthRequest, res: Response): Promise<void> =
   const uniqueVisitorsResult = await prisma.click.groupBy({ by: ['visitorId'], where: { userId: { in: teamIds }, isBot: false, timestamp: { gte: thirtyDaysAgo } } });
   const revenue = conversionValues.reduce((s, c) => s + c.value, 0);
   const prevRevenue = prevValues.reduce((s, c) => s + c.value, 0);
-  const totalSpend = await prisma.campaign.aggregate({ where: { userId: { in: teamIds } }, _sum: { cost: true } }).then((r) => r._sum.cost ?? 0);
+  const totalSpend = await prisma.campaignSpend
+    .aggregate({ where: { campaign: { userId: { in: teamIds } }, date: { gte: thirtyDaysAgo } }, _sum: { cost: true } })
+    .then((r) => r._sum.cost ?? 0);
   const totalAllClicks = totalClicks + botClicks;
   const botRate = totalAllClicks > 0 ? Math.round((botClicks / totalAllClicks) * 100 * 10) / 10 : 0;
   const insights = await generateInsights(teamIds);

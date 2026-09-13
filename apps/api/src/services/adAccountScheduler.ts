@@ -1,24 +1,46 @@
 import { prisma } from '../config/database';
-import { fetchCampaignSpend } from './metaAdsSync';
+import { fetchCampaignDailySpend } from './metaAdsSync';
 
-// Pulls today's spend from one connected Meta ad account and applies it to
-// any AdFlow campaign whose externalCampaignId matches. Shared between the
-// manual "Sync now" API route and the background scheduler below.
+// Pulls the last 30 days of daily spend from one connected Meta ad account
+// and writes it into CampaignSpend (one row per campaign per day, set to
+// Meta's exact number for that day) for any AdFlow campaign whose
+// externalCampaignId matches. Campaign.cost is then recomputed as the sum
+// of all known CampaignSpend for that campaign, so it stays a valid
+// lifetime total while CampaignSpend supports date-range filtering.
+// Shared between the manual "Sync now" API route and the scheduler below.
 export async function syncMetaConnection(connectionId: string): Promise<{ updated: number; seen: number }> {
   const conn = await prisma.adAccountConnection.findUnique({ where: { id: connectionId } });
   if (!conn) throw new Error('Connection not found');
 
-  const spendByCampaign = await fetchCampaignSpend(conn.accessToken, conn.accountId);
+  const dailySpend = await fetchCampaignDailySpend(conn.accessToken, conn.accountId, 30);
 
+  const externalIds = Array.from(new Set(dailySpend.map((d) => d.campaignId)));
   const linkedCampaigns = await prisma.campaign.findMany({
-    where: { userId: conn.userId, externalCampaignId: { in: Object.keys(spendByCampaign) } },
+    where: { userId: conn.userId, externalCampaignId: { in: externalIds } },
   });
+  const campaignByExternalId = new Map(linkedCampaigns.map((c) => [c.externalCampaignId!, c]));
 
   let updated = 0;
-  for (const c of linkedCampaigns) {
-    const spend = spendByCampaign[c.externalCampaignId!];
-    if (spend === undefined) continue;
-    await prisma.campaign.update({ where: { id: c.id }, data: { cost: spend, costSyncedAt: new Date() } });
+  const touchedCampaignIds = new Set<string>();
+  for (const row of dailySpend) {
+    const campaign = campaignByExternalId.get(row.campaignId);
+    if (!campaign) continue;
+    const date = new Date(row.date);
+    date.setUTCHours(0, 0, 0, 0);
+    await prisma.campaignSpend.upsert({
+      where: { campaignId_date: { campaignId: campaign.id, date } },
+      create: { campaignId: campaign.id, date, cost: row.spend },
+      update: { cost: row.spend },
+    });
+    touchedCampaignIds.add(campaign.id);
+  }
+
+  for (const campaignId of touchedCampaignIds) {
+    const total = await prisma.campaignSpend.aggregate({ where: { campaignId }, _sum: { cost: true } });
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { cost: total._sum.cost ?? 0, costSyncedAt: new Date() },
+    });
     updated++;
   }
 
@@ -27,7 +49,7 @@ export async function syncMetaConnection(connectionId: string): Promise<{ update
     data: { lastSyncAt: new Date(), lastSyncError: null },
   });
 
-  return { updated, seen: Object.keys(spendByCampaign).length };
+  return { updated, seen: externalIds.length };
 }
 
 // Runs on a schedule (see index.ts) to keep campaign cost fresh without the

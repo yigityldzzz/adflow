@@ -178,6 +178,23 @@ model Campaign {
   links           TrackingLink[]
   clicks          Click[]
   alerts          Alert[]
+  dailySpend      CampaignSpend[]
+}
+
+// Per-day spend for a campaign, so cost can be filtered by date range
+// (Campaign.cost alone is a single cumulative/last-synced number with no
+// date dimension). Populated by the Meta sync (one row per day, set to the
+// exact daily spend Meta reports) and by manual cost edits (one row for the
+// day the edit was made, incremented by the delta).
+model CampaignSpend {
+  id         String   @id @default(cuid())
+  campaignId String
+  date       DateTime // normalized to midnight UTC — day granularity
+  cost       Float
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date])
+  @@index([campaignId, date])
 }
 
 // An OAuth-connected ad account whose spend we can auto-pull into

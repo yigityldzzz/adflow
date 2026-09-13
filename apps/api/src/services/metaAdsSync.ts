@@ -43,22 +43,13 @@ async function graphGet<T>(path: string, params: Record<string, string>): Promis
 export function buildAuthorizeUrl(state: string): string {
   const appId = process.env.META_APP_ID;
   const redirectUri = process.env.META_REDIRECT_URI;
-  const configId = process.env.META_CONFIG_ID;
   if (!appId || !redirectUri) {
     throw new Error('META_APP_ID / META_REDIRECT_URI not configured on the server');
   }
   const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
   url.searchParams.set('client_id', appId);
   url.searchParams.set('redirect_uri', redirectUri);
-  if (configId) {
-    // Facebook Login for Business: the config_id encodes both the
-    // permissions and the Business Manager asset picker behavior, so it
-    // replaces `scope` (this is what lets a Business-Manager-owned ad
-    // account show up in the account picker, not just personal accounts).
-    url.searchParams.set('config_id', configId);
-  } else {
-    url.searchParams.set('scope', 'ads_read,business_management');
-  }
+  url.searchParams.set('scope', 'ads_read');
   url.searchParams.set('state', state);
   url.searchParams.set('response_type', 'code');
   return url.toString();
@@ -130,4 +121,37 @@ export async function fetchCampaignSpend(
     spendByCampaign[row.campaign_id] = parseFloat(row.spend) || 0;
   }
   return spendByCampaign;
+}
+
+export interface DailyCampaignSpend {
+  campaignId: string;
+  date: string; // "YYYY-MM-DD"
+  spend: number;
+}
+
+// Same as fetchCampaignSpend but broken down per day (via time_increment),
+// so cost can be filtered by date range instead of only ever being "spend
+// as of the last sync". daysBack controls how far back to (re-)pull, since
+// Meta's own daily numbers can be revised for a day or two after the fact.
+export async function fetchCampaignDailySpend(
+  accessToken: string,
+  adAccountId: string,
+  daysBack: number = 30
+): Promise<DailyCampaignSpend[]> {
+  const res = await graphGet<{ data: Array<{ campaign_id: string; spend: string; date_start: string }> }>(
+    `/${adAccountId}/insights`,
+    {
+      level: 'campaign',
+      fields: 'campaign_id,spend',
+      time_increment: '1',
+      date_preset: daysBack <= 7 ? 'last_7d' : daysBack <= 30 ? 'last_30d' : 'last_90d',
+      access_token: accessToken,
+    }
+  );
+
+  return res.data.map((row) => ({
+    campaignId: row.campaign_id,
+    date: row.date_start,
+    spend: parseFloat(row.spend) || 0,
+  }));
 }

@@ -9,6 +9,21 @@ import { getTeamUserIds } from '../services/team';
 const router = Router();
 router.use(authenticate);
 
+// Manual cost entry has no per-day history, so we attribute any change to
+// the day it was made: today's CampaignSpend row is incremented by the
+// delta (new value minus old value), which keeps date-filtered totals
+// (Dashboard/Reports) consistent with the campaign's lifetime cost.
+async function recordManualSpendDelta(campaignId: string, delta: number): Promise<void> {
+  if (delta === 0) return;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  await prisma.campaignSpend.upsert({
+    where: { campaignId_date: { campaignId, date: today } },
+    create: { campaignId, date: today, cost: delta },
+    update: { cost: { increment: delta } },
+  });
+}
+
 // GET /api/campaigns
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   const teamIds = await getTeamUserIds(req.user!.id);
@@ -101,6 +116,10 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
       userId,
     },
   });
+
+  if (parse.data.cost) {
+    await recordManualSpendDelta(campaign.id, parse.data.cost);
+  }
 
   res.status(201).json({ campaign });
 });
@@ -195,6 +214,11 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
     where: { id },
     data: parse.data,
   });
+
+  if (parse.data.cost !== undefined) {
+    const delta = parse.data.cost - (existing.cost ?? 0);
+    await recordManualSpendDelta(campaign.id, delta);
+  }
 
   res.json({ campaign });
 });
