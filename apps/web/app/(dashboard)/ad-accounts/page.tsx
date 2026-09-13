@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Link2 as LinkIcon, Trash2, RefreshCw, CheckCircle2, AlertCircle, ExternalLink, Clock,
+  Link2 as LinkIcon, Trash2, RefreshCw, Loader2, CheckCircle2, AlertCircle, ExternalLink, Clock,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -23,6 +23,7 @@ function AdAccountsInner() {
   const searchParams = useSearchParams();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const fetchConnections = useCallback(async () => {
@@ -50,6 +51,17 @@ function AdAccountsInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  async function handleConnect() {
+    setConnecting(true);
+    try {
+      const res = await api.get<{ url: string }>('/api/ad-accounts/meta/connect-url');
+      window.location.href = res.url;
+    } catch (err) {
+      toast({ type: 'error', title: err instanceof Error ? err.message : 'Meta Ads integration is not configured on the server yet' });
+      setConnecting(false);
+    }
+  }
 
   async function handleSync(id: string) {
     setSyncingId(id);
@@ -91,12 +103,12 @@ function AdAccountsInner() {
           <p className="text-sm text-[#94a3b8] mt-0.5">Auto-pull ad spend from Meta into linked campaigns — no more manual cost entry.</p>
         </div>
         <button
-          disabled
-          title="Meta app review is in progress — this will open automatically once it's approved."
-          className="inline-flex items-center gap-2 bg-[#e2e8f0] text-[#94a3b8] text-sm font-semibold px-4 py-2 rounded-xl cursor-not-allowed"
+          onClick={handleConnect}
+          disabled={connecting}
+          className="inline-flex items-center gap-2 bg-[#1877F2] hover:bg-[#1568d8] disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md"
         >
-          <span className="text-base opacity-60">📘</span>
-          Connect Meta Ads — Coming Soon
+          {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-base">📘</span>}
+          Connect Meta Ads
         </button>
       </div>
 
@@ -107,7 +119,7 @@ function AdAccountsInner() {
               <LinkIcon className="w-7 h-7 text-[#94a3b8]" />
             </div>
             <p className="text-sm text-[#94a3b8] max-w-sm text-center">
-              Meta Ads auto-sync is coming soon, while our app goes through Meta&apos;s review process. Until then, enter campaign cost manually on each campaign.
+              No ad accounts connected yet. Connect Meta to auto-sync campaign spend instead of entering it manually.
             </p>
           </div>
         ) : (
@@ -150,7 +162,7 @@ function AdAccountsInner() {
       </div>
 
       <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
-        <h3 className="text-sm font-semibold text-[#0f172a] mb-2">How campaign linking will work</h3>
+        <h3 className="text-sm font-semibold text-[#0f172a] mb-2">How campaign linking works</h3>
         <ol className="text-xs text-[#64748b] space-y-1.5 list-decimal list-inside leading-relaxed">
           <li>Connect your Meta Ads account above (one-time OAuth login).</li>
           <li>Open a campaign in AdFlow and pick its matching Meta campaign from the dropdown.</li>
