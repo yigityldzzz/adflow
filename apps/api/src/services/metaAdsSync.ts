@@ -49,7 +49,10 @@ export function buildAuthorizeUrl(state: string): string {
   const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
   url.searchParams.set('client_id', appId);
   url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set('scope', 'ads_read');
+  // business_management is required in addition to ads_read to see ad
+  // accounts owned by a Business Manager (as opposed to the user's own
+  // personal ad account) via /me/adaccounts.
+  url.searchParams.set('scope', 'ads_read,business_management');
   url.searchParams.set('state', state);
   url.searchParams.set('response_type', 'code');
   return url.toString();
