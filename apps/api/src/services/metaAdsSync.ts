@@ -43,13 +43,22 @@ async function graphGet<T>(path: string, params: Record<string, string>): Promis
 export function buildAuthorizeUrl(state: string): string {
   const appId = process.env.META_APP_ID;
   const redirectUri = process.env.META_REDIRECT_URI;
+  const configId = process.env.META_CONFIG_ID;
   if (!appId || !redirectUri) {
     throw new Error('META_APP_ID / META_REDIRECT_URI not configured on the server');
   }
   const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
   url.searchParams.set('client_id', appId);
   url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set('scope', 'ads_read');
+  if (configId) {
+    // Facebook Login for Business: the config_id encodes both the
+    // permissions and the Business Manager asset picker behavior, so it
+    // replaces `scope` (this is what lets a Business-Manager-owned ad
+    // account show up in the account picker, not just personal accounts).
+    url.searchParams.set('config_id', configId);
+  } else {
+    url.searchParams.set('scope', 'ads_read,business_management');
+  }
   url.searchParams.set('state', state);
   url.searchParams.set('response_type', 'code');
   return url.toString();
