@@ -135,7 +135,51 @@ export async function fetchCampaignSpend(
 export interface DailyCampaignSpend {
   campaignId: string;
   date: string; // "YYYY-MM-DD"
-  spend: number;
+  spend: number; // always USD — converted from the ad account's own currency
+}
+
+// Ad accounts can run in any local currency (TRY, EUR, ...) — the rest of
+// AdFlow (dashboard, CampaignSpend, Campaign.cost) assumes USD everywhere,
+// so Meta's raw `spend` figure must be converted before it's stored.
+async function getAdAccountCurrency(accessToken: string, adAccountId: string): Promise<string> {
+  const res = await graphGet<{ currency: string }>(`/${adAccountId}`, {
+    fields: 'currency',
+    access_token: accessToken,
+  });
+  return res.currency;
+}
+
+// Historical daily FX rates via the ECB-backed, free/keyless Frankfurter API.
+// Returns a date -> rate map (1 unit of `fromCurrency` = rate USD).
+async function fetchUsdExchangeRates(
+  fromCurrency: string,
+  since: Date,
+  until: Date
+): Promise<Map<string, number>> {
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const url = `https://api.frankfurter.app/${fmt(since)}..${fmt(until)}?from=${fromCurrency}&to=USD`;
+  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!resp.ok) throw new Error(`Exchange rate lookup failed: HTTP ${resp.status}`);
+  const json = (await resp.json()) as { rates: Record<string, { USD: number }> };
+
+  const rates = new Map<string, number>();
+  for (const [date, dayRates] of Object.entries(json.rates)) {
+    rates.set(date, dayRates.USD);
+  }
+  return rates;
+}
+
+// ECB publishes no rate for weekends/holidays, so a spend day can miss the
+// map — walk backward to the nearest earlier trading day's rate instead of
+// dropping the conversion.
+function rateForDate(rates: Map<string, number>, dateStr: string): number {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  for (let i = 0; i < 14; i++) {
+    const rate = rates.get(d.toISOString().slice(0, 10));
+    if (rate !== undefined) return rate;
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+  return 1; // no rate found in 2 weeks — better to keep the raw number than silently zero it out
 }
 
 // Same as fetchCampaignSpend but broken down per day (via time_increment),
@@ -157,20 +201,38 @@ export async function fetchCampaignDailySpend(
   const since = new Date(until.getTime() - daysBack * 24 * 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
-  const res = await graphGet<{ data: Array<{ campaign_id: string; spend: string; date_start: string }> }>(
-    `/${adAccountId}/insights`,
-    {
-      level: 'campaign',
-      fields: 'campaign_id,spend',
-      time_increment: '1',
-      time_range: JSON.stringify({ since: fmt(since), until: fmt(until) }),
-      access_token: accessToken,
-    }
-  );
+  const [res, currency] = await Promise.all([
+    graphGet<{ data: Array<{ campaign_id: string; spend: string; date_start: string }> }>(
+      `/${adAccountId}/insights`,
+      {
+        level: 'campaign',
+        fields: 'campaign_id,spend',
+        time_increment: '1',
+        time_range: JSON.stringify({ since: fmt(since), until: fmt(until) }),
+        access_token: accessToken,
+      }
+    ),
+    getAdAccountCurrency(accessToken, adAccountId),
+  ]);
 
-  return res.data.map((row) => ({
-    campaignId: row.campaign_id,
-    date: row.date_start,
-    spend: parseFloat(row.spend) || 0,
-  }));
+  let rates: Map<string, number> | null = null;
+  if (currency !== 'USD') {
+    try {
+      rates = await fetchUsdExchangeRates(currency, since, until);
+    } catch (err) {
+      // FX API hiccup shouldn't take down spend syncing — fall back to the
+      // raw (unconverted) number rather than losing the sync entirely.
+      console.error(`fetchCampaignDailySpend: exchange rate lookup failed for ${currency}, storing unconverted:`, err);
+    }
+  }
+
+  return res.data.map((row) => {
+    const rawSpend = parseFloat(row.spend) || 0;
+    const spend = rates ? rawSpend * rateForDate(rates, row.date_start) : rawSpend;
+    return {
+      campaignId: row.campaign_id,
+      date: row.date_start,
+      spend,
+    };
+  });
 }
