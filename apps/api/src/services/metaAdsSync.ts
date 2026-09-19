@@ -147,13 +147,23 @@ export async function fetchCampaignDailySpend(
   adAccountId: string,
   daysBack: number = 30
 ): Promise<DailyCampaignSpend[]> {
+  // Deliberately NOT using `date_preset` here — Meta's Insights API has a
+  // reproducible quirk where `date_preset` (e.g. last_7d/last_30d) combined
+  // with `time_increment` silently returns an empty data array for
+  // recently-active campaigns, even though the same range works fine as an
+  // explicit `time_range`. Confirmed by testing both forms directly against
+  // a real, currently-spending campaign.
+  const until = new Date();
+  const since = new Date(until.getTime() - daysBack * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
   const res = await graphGet<{ data: Array<{ campaign_id: string; spend: string; date_start: string }> }>(
     `/${adAccountId}/insights`,
     {
       level: 'campaign',
       fields: 'campaign_id,spend',
       time_increment: '1',
-      date_preset: daysBack <= 7 ? 'last_7d' : daysBack <= 30 ? 'last_30d' : 'last_90d',
+      time_range: JSON.stringify({ since: fmt(since), until: fmt(until) }),
       access_token: accessToken,
     }
   );
