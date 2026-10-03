@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { UAParser } from 'ua-parser-js';
 import { prisma } from '../config/database';
-import { detectBot } from '../services/botDetection';
+import { detectBot, isAdReviewer } from '../services/botDetection';
 import { lookupGeo } from '../services/geoip';
 import { getTeamUserIds } from '../services/team';
 import { limitFor, PlanTier } from '../config/planLimits';
@@ -242,7 +242,13 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   // 'Suspicious' clicks (weaker signal, e.g. missing UA) are still forwarded —
   // blocking on a weak signal risks turning away real visitors.
   if (isBot) {
-    res.status(200).type('text/plain').send('');
+    // Ad-platform reviewers get the plain destination (no visitor id, no cookie)
+    // so ads aren't rejected; every other bot keeps getting an empty response.
+    if (isAdReviewer(userAgentString, ip)) {
+      res.redirect(302, buildDestinationUrl(link.destinationUrl, q));
+    } else {
+      res.status(200).type('text/plain').send('');
+    }
 
     if (shouldRecord) {
       prisma.click.create({

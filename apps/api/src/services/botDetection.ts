@@ -62,3 +62,23 @@ export function detectBot(
 
   return { isBot, isSuspicious };
 }
+
+// Ad-platform reviewers and link-preview crawlers (Meta/Facebook, Google Ads).
+// They are still bots for reporting, but they must be able to load the real
+// landing page — otherwise the platform shows no link preview or rejects the ad
+// as having a broken destination.
+const AD_REVIEWER_PATTERNS = [
+  /facebookexternalhit/i,
+  /facebot/i,
+  /facebookcatalog/i,
+  /meta-externalagent/i,
+  /adsbot-google/i,
+  /mediapartners-google/i,
+  /google-adwords/i,
+];
+
+export function isAdReviewer(userAgent: string, ip: string): boolean {
+  if (AD_REVIEWER_PATTERNS.some((p) => p.test(userAgent))) return true;
+  // Meta reviews ads from its own data centers, sometimes with a normal browser UA
+  return BOT_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
+}
