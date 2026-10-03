@@ -9,6 +9,13 @@ const BOT_IP_PREFIXES = [
   '66.220.',    // Meta/Facebook
 ];
 
+// Google crawler / ad-review data centers (AdsBot, Ads creative checks, Googlebot)
+const GOOGLE_IP_PREFIXES = [
+  '66.249.',
+  '74.125.',
+  '2001:4860:',
+];
+
 export function detectBot(
   userAgent: string,
   ip: string
@@ -32,6 +39,14 @@ export function detectBot(
     /mj12bot/i,
     /dotbot/i,
     /rogerbot/i,
+    // Google Ads review / creative crawlers (often with a normal mobile Chrome UA)
+    /adsbot-google/i,
+    /google-adwords/i,
+    /google-ads-creatives-assistant/i,
+    /googleother/i,
+    /google-inspectiontool/i,
+    /mediapartners-google/i,
+    /^google$/i,
     /curl\//,
     /wget\//i,
     /python-requests/i,
@@ -49,7 +64,7 @@ export function detectBot(
   ];
 
   const uaIsBot = botPatterns.some((p) => p.test(userAgent));
-  const ipIsBot = BOT_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
+  const ipIsBot = [...BOT_IP_PREFIXES, ...GOOGLE_IP_PREFIXES].some((prefix) => ip.startsWith(prefix));
   const isBot = uaIsBot || ipIsBot;
 
   // Suspicious: empty UA, very short UA, or near-empty after trimming
@@ -75,10 +90,14 @@ const AD_REVIEWER_PATTERNS = [
   /adsbot-google/i,
   /mediapartners-google/i,
   /google-adwords/i,
+  /google-ads-creatives-assistant/i,
+  /googleother/i,
+  /google-inspectiontool/i,
+  /^google$/i,
 ];
 
 export function isAdReviewer(userAgent: string, ip: string): boolean {
   if (AD_REVIEWER_PATTERNS.some((p) => p.test(userAgent))) return true;
-  // Meta reviews ads from its own data centers, sometimes with a normal browser UA
-  return BOT_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
+  // Meta and Google review ads from their own data centers, sometimes with a normal browser UA
+  return [...BOT_IP_PREFIXES, ...GOOGLE_IP_PREFIXES].some((prefix) => ip.startsWith(prefix));
 }
