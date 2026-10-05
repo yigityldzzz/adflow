@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">Terms of Service</h1>
-        <p className="text-sm text-[#94a3b8] mb-12">Last updated: August 12, 2026</p>
+        <p className="text-sm text-[#94a3b8] mb-12">Last updated: October 5, 2026</p>
 
         <div className="prose-custom space-y-10 text-[#334155] leading-relaxed">
           <section>
@@ -59,20 +59,37 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">4. Plans and current status</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">4. Plans, payment and billing</h2>
             <p>
-              AdFlow&rsquo;s Free plan is available today with the limits shown on our pricing page (tracking links,
-              campaigns, and monthly click volume). Every new account also starts with a 7-day trial of Pro
-              features, no credit card required. Pro ($49/month) and Team ($149/month) are shown with their
-              pricing and features, but our payment processor is still being finalized — no card payment is
-              currently collected, and pricing/features may change before paid billing goes live. If your trial
-              ends before paid billing is available, your account automatically returns to the Free plan. We will
-              give notice before any paid plan becomes chargeable.
+              AdFlow&rsquo;s Free plan is available with the limits shown on our pricing page. Every new account
+              starts with a 7-day trial of Pro features, no credit card required; if you do not subscribe before the
+              trial ends, your account automatically returns to the Free plan. Paid plans are billed monthly:
+              Pro &euro;49/month and Team &euro;149/month. Depending on your location, VAT or sales tax may be added
+              at checkout.
+            </p>
+            <p className="mt-2">
+              Our order process is conducted by our online reseller Lemon Squeezy, who is the Merchant of Record for
+              all paid orders. Lemon Squeezy handles payment processing, invoices, sales tax and billing-related
+              customer service. Subscriptions renew automatically each month until cancelled.
             </p>
           </section>
 
+          <section id="refunds" className="scroll-mt-24">
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">5. Cancellation and refunds</h2>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li>You can cancel your subscription at any time from your billing settings or by emailing us. Your paid
+                features remain active until the end of the current billing period; you will not be charged again.</li>
+              <li>If AdFlow is not right for you, you can request a full refund within 14 days of your first payment
+                for a paid plan by emailing{ }
+                <a href="mailto:info@digitaladexpert.de" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>.</li>
+              <li>Renewal payments are not refunded, except where required by law or in case of a billing error.</li>
+              <li>Nothing in this section limits any statutory rights you have as a consumer under the law of your
+                country of residence.</li>
+            </ul>
+          </section>
+
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">5. Acceptable use</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">6. Acceptable use</h2>
             <p>You agree not to use AdFlow to:</p>
             <ul className="list-disc pl-5 space-y-1.5 mt-2">
               <li>Track individuals without a lawful basis under applicable data protection law (e.g. GDPR);</li>
@@ -88,7 +105,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">6. Your data</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">7. Your data</h2>
             <p>
               You retain ownership of the campaign, link, and visitor data you generate through AdFlow. Our handling
               of that data is described in our <Link href="/privacy" className="text-[#6366f1] hover:underline">Privacy Policy</Link>.
@@ -97,7 +114,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">7. Service availability</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">8. Service availability</h2>
             <p>
               AdFlow is an actively developed product. We do not currently guarantee a specific uptime SLA. We aim
               for high availability and will communicate planned maintenance where practical, but the service is
@@ -106,7 +123,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">8. Limitation of liability</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">9. Limitation of liability</h2>
             <p>
               To the maximum extent permitted by law, Digital Ad Expert shall not be liable for indirect,
               incidental, or consequential damages (including lost profits or lost advertising spend) arising from
@@ -116,7 +133,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">9. Termination</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">10. Termination</h2>
             <p>
               You may stop using AdFlow and request deletion of your account at any time by contacting{' '}
               <a href="mailto:info@digitaladexpert.de" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>.
@@ -125,7 +142,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">10. Changes to these Terms</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">11. Changes to these Terms</h2>
             <p>
               We may update these Terms as the product evolves. Continued use of AdFlow after an update constitutes
               acceptance of the revised Terms. Material changes will be reflected by updating the &ldquo;Last
@@ -134,7 +151,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">11. Governing law</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">12. Governing law</h2>
             <p>
               These Terms are governed by the laws of Albania, where the service operator is registered, without
               regard to its conflict-of-law provisions, unless mandatory consumer-protection law in your country of
@@ -143,7 +160,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#0f172a] mb-3">12. Contact</h2>
+            <h2 className="text-xl font-bold text-[#0f172a] mb-3">13. Contact</h2>
             <p>
               Questions about these Terms? Reach us at{' '}
               <a href="mailto:info@digitaladexpert.de" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>.

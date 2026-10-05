@@ -294,7 +294,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             disabled={upgrading}
             className="w-full text-xs font-medium bg-[#6366f1] hover:bg-[#5558e3] disabled:opacity-60 text-white py-1.5 rounded-lg transition-colors"
           >
-            {upgrading ? 'Redirecting…' : 'Upgrade for $49/mo'}
+            {upgrading ? 'Redirecting…' : 'Upgrade for €49/mo'}
           </button>
         </div>
       )}

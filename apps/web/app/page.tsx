@@ -175,7 +175,7 @@ const STEPS = [
 const PLANS = [
   {
     name: 'Free',
-    price: '$0',
+    price: '€0',
     period: '/month',
     description: 'Perfect for testing and small campaigns',
     featuresIntro: null as string | null,
@@ -194,7 +194,7 @@ const PLANS = [
   },
   {
     name: 'Pro',
-    price: '$49',
+    price: '€49',
     period: '/month',
     description: 'For serious performance marketers',
     featuresIntro: 'Everything in Free, plus:' as string | null,
@@ -214,7 +214,7 @@ const PLANS = [
   },
   {
     name: 'Team',
-    price: '$149',
+    price: '€149',
     period: '/month',
     description: 'For agencies and large teams',
     featuresIntro: 'Everything in Pro, plus:' as string | null,
@@ -866,6 +866,7 @@ export default function LandingPage() {
               <ul className="space-y-3 text-sm text-[#64748b]">
                 <li><Link href="/privacy" className="hover:text-[#0f172a] transition-colors">Privacy Policy</Link></li>
                 <li><Link href="/terms" className="hover:text-[#0f172a] transition-colors">Terms of Service</Link></li>
+                <li><Link href="/terms#refunds" className="hover:text-[#0f172a] transition-colors">Refund Policy</Link></li>
               </ul>
             </div>
           </div>
