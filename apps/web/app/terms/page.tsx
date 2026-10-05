@@ -79,7 +79,7 @@ export default function TermsOfServicePage() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li>You can cancel your subscription at any time from your billing settings or by emailing us. Your paid
                 features remain active until the end of the current billing period; you will not be charged again.</li>
-              <li>If AdFlow is not right for you, you can request a full refund within 14 days of your first payment
+              <li>If AdFlow is not right for you, you can request a full refund within 7 days of your first payment
                 for a paid plan by emailing{ }
                 <a href="mailto:info@digitaladexpert.de" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>.</li>
               <li>Renewal payments are not refunded, except where required by law or in case of a billing error.</li>
