@@ -86,7 +86,7 @@ export default function ConversionsPage() {
       setTotal(res.total ?? 0);
       setSummary(res.summary ?? { revenue: 0, count: 0, avg: 0 });
     } catch {
-      toast({ type: 'error', title: 'Yüklenemedi' });
+      toast({ type: 'error', title: 'Could not load' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,7 +102,7 @@ export default function ConversionsPage() {
   const filterChanged = () => setPage(0);
 
   const exportCSV = () => {
-    const headers = ['Zaman', 'Tip', 'Değer', 'Para Birimi', 'Kampanya', 'Link', 'txid', 'Ülke', 'Şehir', 'Cihaz', 'OS', 'Kaynak', 'fbclid', 'IP', 'Visitor ID'];
+    const headers = ['Time', 'Type', 'Value', 'Currency', 'Campaign', 'Link', 'txid', 'Country', 'City', 'Device', 'OS', 'Source', 'fbclid', 'IP', 'Visitor ID'];
     const rows = conversions.map(c => [
       fmt(c.timestamp),
       c.type,
@@ -135,14 +135,14 @@ export default function ConversionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-[#0f172a]">Conversion Log</h2>
-          <p className="text-sm text-[#94a3b8] mt-0.5">{total.toLocaleString()} dönüşüm bulundu</p>
+          <p className="text-sm text-[#94a3b8] mt-0.5">{total.toLocaleString()} conversions found</p>
         </div>
         <div className="flex gap-2">
           <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-2 bg-[#ffffff] border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f8fafc] transition-colors">
             <Download className="w-4 h-4" /> CSV
           </button>
           <button onClick={() => fetchData(true)} disabled={refreshing} className="flex items-center gap-2 px-3 py-2 bg-[#ffffff] border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f8fafc] transition-colors">
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Yenile
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
           </button>
         </div>
       </div>
@@ -150,15 +150,15 @@ export default function ConversionsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-[#ffffff] border border-[#e2e8f0] border-t-2 border-t-[#10b981] rounded-2xl p-4">
-          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Toplam Gelir</p>
+          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Total revenue</p>
           <p className="text-2xl font-bold text-[#0f172a]">{money(summary.revenue)}</p>
         </div>
         <div className="bg-[#ffffff] border border-[#e2e8f0] border-t-2 border-t-[#6366f1] rounded-2xl p-4">
-          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Dönüşüm Sayısı</p>
+          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Conversions</p>
           <p className="text-2xl font-bold text-[#0f172a]">{summary.count.toLocaleString()}</p>
         </div>
         <div className="bg-[#ffffff] border border-[#e2e8f0] border-t-2 border-t-[#f59e0b] rounded-2xl p-4">
-          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Ortalama Değer</p>
+          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider mb-1">Average value</p>
           <p className="text-2xl font-bold text-[#0f172a]">{money(summary.avg)}</p>
         </div>
       </div>
@@ -168,29 +168,29 @@ export default function ConversionsPage() {
         <div className="flex flex-wrap gap-3">
           <select value={preset} onChange={e => { setPreset(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]">
-            <option value="all">Tüm Zamanlar</option>
-            <option value="today">Bugün</option>
-            <option value="yesterday">Dün</option>
-            <option value="last7">Son 7 gün</option>
-            <option value="last30">Son 30 gün</option>
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="last7">Last 7 days</option>
+            <option value="last30">Last 30 days</option>
           </select>
 
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-            <input type="text" placeholder="txid, link adı..." value={search}
+            <input type="text" placeholder="txid, link name..." value={search}
               onChange={e => { setSearch(e.target.value); filterChanged(); }}
               className="w-full pl-9 pr-4 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]" />
           </div>
 
           <select value={campaignId} onChange={e => { setCampaignId(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]">
-            <option value="">Tüm Kampanyalar</option>
+            <option value="">All campaigns</option>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
           <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]">
-            <option value="">Tüm Tipler</option>
+            <option value="">All types</option>
             {Object.entries(TYPE_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
@@ -203,20 +203,20 @@ export default function ConversionsPage() {
         ) : conversions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Target className="w-10 h-10 text-[#e2e8f0]" />
-            <p className="text-sm text-[#94a3b8]">Bu filtrelerle dönüşüm bulunamadı</p>
+            <p className="text-sm text-[#94a3b8]">No conversions match these filters</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[#f1f5f9] bg-[#f8fafc]">
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8] whitespace-nowrap">Zaman</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Tip</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Değer</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Kampanya / Link</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Ülke</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Cihaz</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Kaynak</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8] whitespace-nowrap">Time</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Type</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Value</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Campaign / Link</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Country</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Device</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Source</th>
                   <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">txid / fbclid</th>
                 </tr>
               </thead>

@@ -103,7 +103,7 @@ export default function ClickLogPage() {
         <div>
           <h2 className="text-xl font-bold text-[#0f172a]">Click Log</h2>
           <p className="text-sm text-[#94a3b8] mt-0.5">
-            {total.toLocaleString()} tıklama bulundu
+            {total.toLocaleString()} clicks found
           </p>
         </div>
         <button
@@ -112,7 +112,7 @@ export default function ClickLogPage() {
           className="flex items-center gap-2 px-4 py-2 bg-[#ffffff] border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f8fafc] transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Yenile
+          Refresh
         </button>
       </div>
 
@@ -125,10 +125,10 @@ export default function ClickLogPage() {
             onChange={e => { setPreset(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]"
           >
-            <option value="today">Bugün</option>
-            <option value="yesterday">Dün</option>
-            <option value="last7">Son 7 gün</option>
-            <option value="last30">Son 30 gün</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="last7">Last 7 days</option>
+            <option value="last30">Last 30 days</option>
           </select>
 
           {/* Search */}
@@ -149,7 +149,7 @@ export default function ClickLogPage() {
             onChange={e => { setCampaignId(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]"
           >
-            <option value="">Tüm Kampanyalar</option>
+            <option value="">All campaigns</option>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
@@ -159,7 +159,7 @@ export default function ClickLogPage() {
             onChange={e => { setDevice(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]"
           >
-            <option value="">Tüm Cihazlar</option>
+            <option value="">All devices</option>
             <option value="desktop">Desktop</option>
             <option value="mobile">Mobile</option>
             <option value="tablet">Tablet</option>
@@ -171,9 +171,9 @@ export default function ClickLogPage() {
             onChange={e => { setIsBot(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]"
           >
-            <option value="">Bot + İnsan</option>
-            <option value="false">Sadece İnsan</option>
-            <option value="true">Sadece Bot</option>
+            <option value="">Bots + humans</option>
+            <option value="false">Humans only</option>
+            <option value="true">Bots only</option>
           </select>
 
           {/* Unique filter */}
@@ -182,9 +182,9 @@ export default function ClickLogPage() {
             onChange={e => { setIsUnique(e.target.value); filterChanged(); }}
             className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1]"
           >
-            <option value="">Tüm Tıklamalar</option>
-            <option value="true">Sadece Unique</option>
-            <option value="false">Sadece Tekrar</option>
+            <option value="">All clicks</option>
+            <option value="true">Unique only</option>
+            <option value="false">Repeat only</option>
           </select>
         </div>
       </div>
@@ -200,21 +200,21 @@ export default function ClickLogPage() {
         ) : clicks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <MousePointerClick className="w-10 h-10 text-[#e2e8f0]" />
-            <p className="text-sm text-[#94a3b8]">Bu filtrelerle tıklama bulunamadı</p>
+            <p className="text-sm text-[#94a3b8]">No clicks match these filters</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[#f1f5f9] bg-[#f8fafc]">
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8] whitespace-nowrap">Zaman</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Kampanya / Link</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Ülke</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Cihaz / OS</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Kaynak</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8] whitespace-nowrap">Time</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Campaign / Link</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Country</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Device / OS</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Source</th>
                   <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">IP</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Durum</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Dönüşüm</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Status</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[#94a3b8]">Conversion</th>
                 </tr>
               </thead>
               <tbody>
@@ -291,12 +291,12 @@ export default function ClickLogPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-[#f8fafc] border border-[#e2e8f0] rounded text-[10px] text-[#94a3b8]">
-                            Tekrar
+                            Repeat
                           </span>
                         )}
                         {click.isSuspicious && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-50 border border-orange-200 rounded text-[10px] text-orange-600 font-semibold">
-                            ⚠ Şüpheli
+                            ⚠ Suspicious
                           </span>
                         )}
                       </div>
@@ -328,7 +328,7 @@ export default function ClickLogPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[#f1f5f9]">
             <p className="text-xs text-[#94a3b8]">
-              {page * limit + 1}–{Math.min((page + 1) * limit, total)} / {total.toLocaleString()} tıklama
+              {page * limit + 1}–{Math.min((page + 1) * limit, total)} / {total.toLocaleString()} clicks
             </p>
             <div className="flex gap-2">
               <button
