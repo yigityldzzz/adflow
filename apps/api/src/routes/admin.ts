@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { getSubscription, planForVariant } from '../services/lemonsqueezy';
+import { issuePasswordReset } from '../services/passwordReset';
 
 const router = Router();
 router.use(authenticate);
@@ -67,6 +69,8 @@ router.get('/users', async (req: AuthRequest, res: Response): Promise<void> => {
         role: true,
         suspended: true,
         createdAt: true,
+        lastActiveAt: true,
+        lsStatus: true,
         _count: { select: { links: true, campaigns: true } },
       },
     }),
@@ -95,6 +99,8 @@ router.get('/users/:id', async (req: AuthRequest, res: Response): Promise<void> 
     select: {
       id: true, name: true, email: true, plan: true, role: true,
       suspended: true, notes: true, createdAt: true,
+      trialPlan: true, trialEndsAt: true, lastLoginAt: true, lastActiveAt: true,
+      lsStatus: true, lsSubscriptionId: true, lsCustomerId: true, lsVariantId: true,
       links: {
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -113,9 +119,40 @@ router.get('/users/:id', async (req: AuthRequest, res: Response): Promise<void> 
     prisma.conversion.aggregate({ where: { userId: id }, _sum: { value: true } }),
   ]);
 
+  // Live Lemon Squeezy view of the subscription (dates, card). Falls back to
+  // the stored status if Lemon Squeezy can't be reached or doesn't know it.
+  let subscription: Record<string, unknown> | null = null;
+  if (user.lsSubscriptionId) {
+    subscription = {
+      id: user.lsSubscriptionId,
+      status: user.lsStatus,
+      plan: user.lsVariantId ? planForVariant(user.lsVariantId) : null,
+      live: false,
+    };
+    try {
+      const sub = await getSubscription(user.lsSubscriptionId);
+      if (sub) {
+        subscription = {
+          id: user.lsSubscriptionId,
+          status: sub.status,
+          plan: planForVariant(sub.variantId),
+          renewsAt: sub.renewsAt,
+          endsAt: sub.endsAt,
+          trialEndsAt: sub.trialEndsAt,
+          cardBrand: sub.cardBrand,
+          cardLastFour: sub.cardLastFour,
+          live: true,
+        };
+      }
+    } catch (err) {
+      console.error('[admin/users/:id] subscription fetch', err);
+    }
+  }
+
   res.json({
     user: {
       ...user,
+      subscription,
       stats: {
         totalClicks,
         totalConversions,
@@ -152,7 +189,40 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response): Promise<void
     select: { id: true, name: true, email: true, plan: true, role: true, suspended: true, notes: true },
   });
 
+  if (parse.data.suspended === true && !user.suspended) {
+    // Revoke every session; the user is signed out within one access-token
+    // lifetime (15 min) and can't sign back in.
+    await prisma.refreshToken.deleteMany({ where: { userId: id } });
+  }
+  if (parse.data.suspended !== undefined && parse.data.suspended !== user.suspended) {
+    console.log(`[ADMIN] ${req.user!.id} ${parse.data.suspended ? 'suspended' : 'unsuspended'} user ${id}`);
+  }
+  if (parse.data.plan && parse.data.plan !== user.plan) {
+    console.log(`[ADMIN] ${req.user!.id} changed plan of user ${id}: ${user.plan} -> ${parse.data.plan}`);
+  }
+
   res.json({ user: updated });
+});
+
+// POST /api/admin/users/:id/password-reset — email the user a reset link
+router.post('/users/:id/password-reset', async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true, name: true, suspended: true } });
+  if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+  if (user.suspended) { res.status(400).json({ error: 'User is suspended' }); return; }
+
+  const result = await issuePasswordReset(user);
+  console.log(`[ADMIN] ${req.user!.id} sent password reset to user ${id}: ${result}`);
+
+  if (result === 'throttled') {
+    res.status(429).json({ error: 'A reset email was sent less than a minute ago' });
+    return;
+  }
+  if (result === 'failed') {
+    res.status(502).json({ error: 'Could not send the email' });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 // POST /api/admin/users/:id/trial

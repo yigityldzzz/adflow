@@ -97,7 +97,8 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
-// Account creation: every attempt counts (spam sign-ups).
+// Account creation and reset-link requests: every attempt counts (spam
+// sign-ups, mail flooding).
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -147,6 +148,8 @@ app.get('/health', (_req, res) => {
 app.post('/api/auth/login', loginLimiter);
 app.patch('/api/auth/me', loginLimiter);
 app.post('/api/auth/register', authLimiter);
+app.post('/api/auth/forgot-password', authLimiter);
+app.post('/api/auth/reset-password', loginLimiter);
 app.use('/api/auth', sessionLimiter, authRouter);
 
 // Protected API routes (general rate limit)

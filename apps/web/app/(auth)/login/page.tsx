@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Activity, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { setToken, setUser } from '@/lib/auth';
+import { setToken, setRefreshToken, setUser } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,8 +21,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post<{ accessToken: string; user: unknown }>('/api/auth/login', form);
+      const res = await api.post<{ accessToken: string; refreshToken?: string; user: unknown }>('/api/auth/login', form);
       setToken(res.accessToken);
+      if (res.refreshToken) setRefreshToken(res.refreshToken);
       if (res.user) setUser(res.user);
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -116,9 +117,9 @@ export default function LoginPage() {
                 <input type="checkbox" className="w-4 h-4 rounded border-[#e2e8f0] bg-[#f8fafc] accent-[#6366f1]" />
                 <span className="text-xs text-[#64748b]">Remember me</span>
               </label>
-              <a href="mailto:info@digitaladexpert.de?subject=Password%20reset" className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors">
+              <Link href="/forgot-password" className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors">
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <button

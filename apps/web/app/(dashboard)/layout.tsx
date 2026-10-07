@@ -31,7 +31,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { clearAuth, getToken, isImpersonating, stopImpersonation } from '@/lib/auth';
+import { clearAuth, getRefreshToken, getToken, isImpersonating, stopImpersonation } from '@/lib/auth';
 import { ToastContainer, toast } from '@/components/Toast';
 
 interface User {
@@ -210,6 +210,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [fetchUser]);
 
   const handleLogout = () => {
+    // Revoke the session server-side too (best effort — sign out locally either way).
+    const refreshToken = getRefreshToken();
+    if (refreshToken) api.post('/api/auth/logout', { refreshToken }).catch(() => {});
     clearAuth();
     router.push('/login');
   };

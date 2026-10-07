@@ -6,10 +6,17 @@ import { z } from 'zod';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { Plan, Role } from '@prisma/client';
+import { sendMail } from '../services/mailer';
+import { welcomeEmail, passwordChangedEmail } from '../services/emailTemplates';
+import { hashResetToken, issuePasswordReset } from '../services/passwordReset';
 
 const router = Router();
 
 const BCRYPT_ROUNDS = 12;
+const SUSPENDED_MESSAGE = 'This account is suspended. Please contact info@digitaladexpert.de.';
+// GET /me runs on every dashboard page load; only write lastActiveAt when
+// the stored value is older than this.
+const ACTIVITY_WRITE_INTERVAL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_EXPIRES = '15m';
 const REFRESH_TOKEN_EXPIRES_DAYS = 30;
 
@@ -26,6 +33,9 @@ function signAccessToken(payload: { id: string; email: string; plan: Plan; role:
 function signRefreshToken(payload: { id: string }): string {
   return jwt.sign(payload, getJwtSecret(), {
     expiresIn: `${REFRESH_TOKEN_EXPIRES_DAYS}d`,
+    // Random id so two tokens issued in the same second still differ —
+    // otherwise rotation could hand back the token it just revoked.
+    jwtid: randomBytes(16).toString('hex'),
   });
 }
 
@@ -72,8 +82,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
+  const now = new Date();
   const user = await prisma.user.create({
-    data: { email, password: hashed, name, trialPlan: Plan.PRO, trialEndsAt },
+    data: { email, password: hashed, name, trialPlan: Plan.PRO, trialEndsAt, lastLoginAt: now, lastActiveAt: now },
     select: { id: true, email: true, name: true, plan: true, role: true, createdAt: true, trialPlan: true, trialEndsAt: true },
   });
 
@@ -94,6 +105,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     accessToken,
     refreshToken: refreshTokenValue,
   });
+
+  // After responding — signup never waits on (or fails because of) mail.
+  void sendMail(user.email, welcomeEmail({ name: user.name, trialEndsAt }));
 });
 
 // POST /api/auth/login
@@ -122,6 +136,16 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
+
+  // Checked only after the password, so the response doesn't reveal to a
+  // stranger that an account exists or is suspended.
+  if (user.suspended) {
+    res.status(403).json({ error: SUSPENDED_MESSAGE });
+    return;
+  }
+
+  const now = new Date();
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: now, lastActiveAt: now } });
 
   const effectivePlan = getEffectivePlan(user);
   const accessToken = signAccessToken({ id: user.id, email: user.email, plan: effectivePlan, role: user.role });
@@ -162,6 +186,12 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
 
   if (!stored || stored.expiresAt < new Date()) {
     res.status(401).json({ error: 'Invalid or expired refresh token' });
+    return;
+  }
+
+  if (stored.user.suspended) {
+    await prisma.refreshToken.deleteMany({ where: { userId: stored.user.id } });
+    res.status(401).json({ error: SUSPENDED_MESSAGE });
     return;
   }
 
@@ -211,12 +241,26 @@ router.post('/logout', async (req: Request, res: Response): Promise<void> => {
 router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { id: true, email: true, name: true, plan: true, role: true, createdAt: true, trialPlan: true, trialEndsAt: true },
+    select: {
+      id: true, email: true, name: true, plan: true, role: true, createdAt: true, trialPlan: true, trialEndsAt: true,
+      suspended: true, lastActiveAt: true,
+    },
   });
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
+  }
+
+  // 401 (not 403) so the dashboard signs the user out right away.
+  if (user.suspended && !req.user!.impersonatedBy) {
+    res.status(401).json({ error: SUSPENDED_MESSAGE });
+    return;
+  }
+
+  // An admin viewing the account via "Login as user" isn't customer activity.
+  if (!req.user!.impersonatedBy && (!user.lastActiveAt || Date.now() - user.lastActiveAt.getTime() > ACTIVITY_WRITE_INTERVAL_MS)) {
+    await prisma.user.update({ where: { id: user.id }, data: { lastActiveAt: new Date() } });
   }
 
   // Auto-expire trial
@@ -231,10 +275,13 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
 
   const effectivePlan = getEffectivePlan(user);
   const trialActive = !!(user.trialPlan && user.trialEndsAt && user.trialEndsAt > new Date());
+  const { suspended: _suspended, lastActiveAt: _lastActiveAt, ...userOut } = user;
+  void _suspended;
+  void _lastActiveAt;
 
   res.json({
     user: {
-      ...user,
+      ...userOut,
       plan: effectivePlan,
       trial: trialActive ? { plan: user.trialPlan, endsAt: user.trialEndsAt } : null,
     },
@@ -289,6 +336,86 @@ router.patch('/me', authenticate, async (req: AuthRequest, res: Response): Promi
   });
 
   res.json({ user: updated });
+
+  if (updateData.password) {
+    void sendMail(updated.email, passwordChangedEmail({ name: updated.name, email: updated.email }));
+  }
+});
+
+// POST /api/auth/forgot-password
+// Always answers the same way so it can't be used to find out which emails
+// have an account; the mail itself is sent in the background.
+const forgotSchema = z.object({ email: z.string().email() });
+
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  const parse = forgotSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Please enter a valid email address' });
+    return;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: parse.data.email.trim(), mode: 'insensitive' } },
+    select: { id: true, email: true, name: true, suspended: true },
+  });
+
+  res.json({ ok: true });
+
+  if (user && !user.suspended) {
+    issuePasswordReset(user)
+      .then((r) => { if (r !== 'sent') console.warn(`[auth/forgot-password] reset for ${user.id}: ${r}`); })
+      .catch((err) => console.error('[auth/forgot-password]', err));
+  }
+});
+
+// POST /api/auth/reset-password
+const resetSchema = z.object({
+  token: z.string().min(32).max(200),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const INVALID_RESET_LINK = 'This reset link is invalid or has expired. Please request a new one.';
+
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  const parse = resetSchema.safeParse(req.body);
+  if (!parse.success) {
+    const pwIssue = parse.error.errors.find((e) => e.path[0] === 'password');
+    res.status(400).json({ error: pwIssue?.message ?? INVALID_RESET_LINK });
+    return;
+  }
+
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(parse.data.token) },
+    include: { user: { select: { id: true, email: true, name: true, suspended: true } } },
+  });
+
+  if (!record || record.usedAt || record.expiresAt < new Date() || record.user.suspended) {
+    res.status(400).json({ error: INVALID_RESET_LINK });
+    return;
+  }
+
+  // Claim the token atomically so two simultaneous submits can't both use it.
+  const claimed = await prisma.passwordResetToken.updateMany({
+    where: { id: record.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (claimed.count !== 1) {
+    res.status(400).json({ error: INVALID_RESET_LINK });
+    return;
+  }
+
+  const hashed = await bcrypt.hash(parse.data.password, BCRYPT_ROUNDS);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { password: hashed } }),
+    // Sign out every existing session — whoever triggered the reset may
+    // have been locked out by someone else using the old password.
+    prisma.refreshToken.deleteMany({ where: { userId: record.userId } }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: record.userId, id: { not: record.id } } }),
+  ]);
+
+  res.json({ ok: true });
+
+  void sendMail(record.user.email, passwordChangedEmail(record.user));
 });
 
 // GET /api/auth/api-key — get current API key

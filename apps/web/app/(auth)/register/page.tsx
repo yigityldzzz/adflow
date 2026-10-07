@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Activity, Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { api } from '@/lib/api';
-import { setToken, setUser } from '@/lib/auth';
+import { setToken, setRefreshToken, setUser } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -40,8 +40,9 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await api.post<{ accessToken: string; user: unknown }>('/api/auth/register', form);
+      const res = await api.post<{ accessToken: string; refreshToken?: string; user: unknown }>('/api/auth/register', form);
       setToken(res.accessToken);
+      if (res.refreshToken) setRefreshToken(res.refreshToken);
       if (res.user) setUser(res.user);
       router.push('/dashboard');
     } catch (err: unknown) {

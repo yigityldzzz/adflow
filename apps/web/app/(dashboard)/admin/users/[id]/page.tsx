@@ -7,6 +7,7 @@ import {
   Crown, ArrowLeft, Ban, Zap, User, MousePointerClick, Target,
   Link2, Megaphone, DollarSign, Save, Trash2, ShieldAlert, Shield,
   CheckCircle, XCircle, Calendar, StickyNote, LogIn, Clock, X,
+  CreditCard, KeyRound, Activity, AlertTriangle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { startImpersonation } from '@/lib/auth';
@@ -22,6 +23,19 @@ interface AdminUserDetail {
   createdAt: string;
   trialPlan?: string | null;
   trialEndsAt?: string | null;
+  lastLoginAt?: string | null;
+  lastActiveAt?: string | null;
+  subscription?: {
+    id: string;
+    status: string | null;
+    plan: 'PRO' | 'TEAM' | null;
+    renewsAt?: string | null;
+    endsAt?: string | null;
+    trialEndsAt?: string | null;
+    cardBrand?: string | null;
+    cardLastFour?: string | null;
+    live: boolean;
+  } | null;
   stats: {
     totalClicks: number;
     totalConversions: number;
@@ -51,6 +65,33 @@ const PLAN_COLORS: Record<string, string> = {
   TEAM: 'text-[#c4b5fd] bg-[#8b5cf6]/20 border-[#8b5cf6]/30',
 };
 
+// Lemon Squeezy statuses where the subscription is still running (or can be
+// resumed) — mirrors OPEN_STATUSES in apps/api/src/routes/billing.ts.
+const OPEN_SUB_STATUSES = new Set(['on_trial', 'active', 'past_due', 'cancelled', 'paused', 'unpaid']);
+
+const SUB_STATUS_STYLES: Record<string, string> = {
+  on_trial: 'text-[#6366f1] bg-[#6366f1]/10 border-[#6366f1]/20',
+  active: 'text-[#10b981] bg-[#10b981]/10 border-[#10b981]/20',
+  cancelled: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20',
+  past_due: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20',
+  unpaid: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20',
+};
+
+function fmtDateTime(iso?: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function timeAgo(iso?: string | null): string {
+  if (!iso) return 'never';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   FREE: <User className="w-3 h-3" />,
   PRO: <Zap className="w-3 h-3" />,
@@ -74,6 +115,7 @@ export default function AdminUserDetailPage() {
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const showToast = (msg: string, type: 'ok' | 'err' = 'ok') => {
     setToast({ msg, type });
@@ -100,6 +142,15 @@ export default function AdminUserDetailPage() {
 
   const handleSave = async () => {
     if (!user) return;
+    const sub = user.subscription;
+    if (selectedPlan !== user.plan && sub?.status && OPEN_SUB_STATUSES.has(sub.status)) {
+      const ok = confirm(
+        `This user has a Lemon Squeezy subscription (${sub.status}). ` +
+        'A plan set here is temporary: the next update from Lemon Squeezy (renewal, cancellation, etc.) will overwrite it. ' +
+        'To change what they pay, change the subscription in Lemon Squeezy instead.\n\nChange the plan here anyway?'
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const res = await api.patch<{ user: AdminUserDetail }>(`/api/admin/users/${userId}`, {
@@ -117,8 +168,23 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  const handleSendReset = async () => {
+    if (!user) return;
+    if (!confirm(`Send a password reset email to ${user.email}?`)) return;
+    setSendingReset(true);
+    try {
+      await api.post(`/api/admin/users/${userId}/password-reset`, {});
+      showToast('Password reset email sent');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to send reset email', 'err');
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   const handleToggleSuspend = async () => {
     if (!user) return;
+    if (!user.suspended && !confirm(`Suspend ${user.email}? They will be signed out within 15 minutes and can't sign in until unsuspended.`)) return;
     setSaving(true);
     try {
       await api.patch(`/api/admin/users/${userId}`, { suspended: !user.suspended });
@@ -304,6 +370,72 @@ export default function AdminUserDetailPage() {
             <p className="text-xl font-bold text-[#0f172a]">{s.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* Account activity & subscription */}
+      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-[#0f172a] flex items-center gap-2">
+              <Activity className="w-4 h-4 text-[#6366f1]" /> Account Activity
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
+                <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Last sign-in</p>
+                <p className="text-sm font-semibold text-[#0f172a] mt-0.5">{timeAgo(user.lastLoginAt)}</p>
+                <p className="text-[10px] text-[#94a3b8]">{fmtDateTime(user.lastLoginAt)}</p>
+              </div>
+              <div className="p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
+                <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Last active</p>
+                <p className="text-sm font-semibold text-[#0f172a] mt-0.5">{timeAgo(user.lastActiveAt)}</p>
+                <p className="text-[10px] text-[#94a3b8]">{fmtDateTime(user.lastActiveAt)}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-[#94a3b8]">Tracked since 7 Oct 2026 — older accounts show &quot;never&quot; until their next visit.</p>
+            <button
+              onClick={handleSendReset}
+              disabled={sendingReset || user.suspended}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border bg-[#f8fafc] border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] hover:border-[#6366f1]/40 transition-colors disabled:opacity-40"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              {sendingReset ? 'Sending…' : 'Send password reset email'}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-[#0f172a] flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-[#10b981]" /> Subscription (Lemon Squeezy)
+            </h3>
+            {user.subscription ? (
+              <div className="p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-[#0f172a]">{user.subscription.plan ?? 'Unknown plan'}</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${SUB_STATUS_STYLES[user.subscription.status ?? ''] ?? 'text-[#64748b] bg-[#e2e8f0] border-[#cbd5e1]'}`}>
+                    {user.subscription.status ?? 'unknown'}
+                  </span>
+                  {!user.subscription.live && <span className="text-[10px] text-[#94a3b8]">(stored status — live details unavailable)</span>}
+                </div>
+                {user.subscription.status === 'on_trial' && <p className="text-xs text-[#64748b]">Trial ends {fmtDateTime(user.subscription.trialEndsAt)} — first charge then.</p>}
+                {user.subscription.status === 'active' && <p className="text-xs text-[#64748b]">Renews {fmtDateTime(user.subscription.renewsAt)}</p>}
+                {user.subscription.status === 'cancelled' && <p className="text-xs text-[#64748b]">Cancelled — access until {fmtDateTime(user.subscription.endsAt)}</p>}
+                {user.subscription.cardLastFour && (
+                  <p className="text-xs text-[#94a3b8] capitalize">{user.subscription.cardBrand} •••• {user.subscription.cardLastFour}</p>
+                )}
+                <p className="text-[10px] text-[#94a3b8]">Subscription ID: {user.subscription.id}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-[#94a3b8] p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
+                No paid subscription.{user.trialPlan && user.trialEndsAt ? ` On the free ${user.trialPlan} trial until ${fmtDateTime(user.trialEndsAt)}.` : ''}
+              </p>
+            )}
+            {user.subscription?.status && OPEN_SUB_STATUSES.has(user.subscription.status) && (
+              <p className="text-[10px] text-[#f59e0b] flex items-start gap-1.5">
+                <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                Billing is managed by Lemon Squeezy: refunds, cancellations and plan changes should be done there. A plan changed below will be overwritten by the next subscription update.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Admin controls */}

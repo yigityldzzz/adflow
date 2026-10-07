@@ -56,8 +56,11 @@ model User {
   lsSubscriptionId String?   @unique
   lsVariantId      String?
   lsStatus         String?
+  lastLoginAt      DateTime?
+  lastActiveAt     DateTime?
   createdAt     DateTime       @default(now())
   refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   campaigns     Campaign[]
   links         TrackingLink[]
   conversions   Conversion[]
@@ -156,6 +159,20 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Single-use password reset links. Only the SHA-256 of the token is stored,
+// so a database leak can't be turned into working reset links.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Campaign {

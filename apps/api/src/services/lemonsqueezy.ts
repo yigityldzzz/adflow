@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { webBaseUrl } from '../config/urls';
 
 const API_BASE = 'https://api.lemonsqueezy.com/v1';
 
@@ -21,10 +22,6 @@ export function planForVariant(variantId: string): 'PRO' | 'TEAM' | null {
   if (variantId === process.env.LEMONSQUEEZY_VARIANT_PRO) return 'PRO';
   if (variantId === process.env.LEMONSQUEEZY_VARIANT_TEAM) return 'TEAM';
   return null;
-}
-
-function webBaseUrl(): string {
-  return (process.env.WEB_BASE_URL ?? 'https://adflow.digitaladexpert.de').replace(/\/+$/, '');
 }
 
 export async function createCheckoutUrl(params: {

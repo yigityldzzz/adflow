@@ -6,6 +6,16 @@ export function getToken(): string | null {
   return localStorage.getItem('adflow_token');
 }
 
+// Long-lived (30 days) token used to get a new 15-minute access token
+// without asking the user to sign in again (see lib/api.ts).
+export function setRefreshToken(token: string): void {
+  localStorage.setItem('adflow_refresh', token);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem('adflow_refresh');
+}
+
 export function setUser(user: unknown): void {
   localStorage.setItem('adflow_user', JSON.stringify(user));
 }
@@ -22,6 +32,7 @@ export function getUser(): unknown {
 
 export function clearAuth(): void {
   localStorage.removeItem('adflow_token');
+  localStorage.removeItem('adflow_refresh');
   localStorage.removeItem('adflow_user');
 }
 
