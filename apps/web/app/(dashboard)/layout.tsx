@@ -365,7 +365,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleReturnToAdmin = () => {
     stopImpersonation();
-    router.push('/admin/users');
+    // Full reload: the layout keeps the impersonated user and banner in
+    // state, so a client-side navigation would leave them on screen.
+    window.location.assign('/admin/users');
   };
 
   return (
