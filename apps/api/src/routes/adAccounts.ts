@@ -50,6 +50,8 @@ router.get('/meta/connect-url', authenticate, async (req: AuthRequest, res: Resp
 });
 
 // GET /api/ad-accounts/meta/callback — public (Meta redirects the browser here directly, no auth header available)
+// Every outcome redirects to /ad-accounts, the page that reads `connected` /
+// `meta_error` and tells the user what happened.
 router.get('/meta/callback', async (req: Request, res: Response): Promise<void> => {
   const webBase = process.env.WEB_BASE_URL ?? 'https://adflow.digitaladexpert.de';
   const code = req.query.code as string | undefined;
@@ -57,17 +59,17 @@ router.get('/meta/callback', async (req: Request, res: Response): Promise<void> 
   const oauthError = req.query.error_description as string | undefined;
 
   if (oauthError) {
-    res.redirect(`${webBase}/settings?meta_error=${encodeURIComponent(oauthError)}`);
+    res.redirect(`${webBase}/ad-accounts?meta_error=${encodeURIComponent(oauthError)}`);
     return;
   }
   if (!code || !state) {
-    res.redirect(`${webBase}/settings?meta_error=missing_code_or_state`);
+    res.redirect(`${webBase}/ad-accounts?meta_error=missing_code_or_state`);
     return;
   }
 
   const verified = verifyState(state);
   if (!verified) {
-    res.redirect(`${webBase}/settings?meta_error=invalid_or_expired_state`);
+    res.redirect(`${webBase}/ad-accounts?meta_error=invalid_or_expired_state`);
     return;
   }
 
@@ -96,9 +98,9 @@ router.get('/meta/callback', async (req: Request, res: Response): Promise<void> 
       });
     }
 
-    res.redirect(`${webBase}/settings?connected=meta&accounts=${accounts.length}`);
+    res.redirect(`${webBase}/ad-accounts?connected=meta&accounts=${accounts.length}`);
   } catch (e) {
-    res.redirect(`${webBase}/settings?meta_error=${encodeURIComponent(e instanceof Error ? e.message : 'connection_failed')}`);
+    res.redirect(`${webBase}/ad-accounts?meta_error=${encodeURIComponent(e instanceof Error ? e.message : 'connection_failed')}`);
   }
 });
 

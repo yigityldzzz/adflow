@@ -208,7 +208,7 @@ export default function CampaignsPage() {
     setEditLoading(true);
     setEditError('');
     try {
-      await api.patch(`/api/campaigns/${editCampaign.id}`, {
+      const res = await api.patch<{ spendSynced?: boolean }>(`/api/campaigns/${editCampaign.id}`, {
         name: editForm.name,
         description: editForm.description || undefined,
         budget: editForm.budget ? parseFloat(editForm.budget) : undefined,
@@ -220,7 +220,9 @@ export default function CampaignsPage() {
         status: editForm.status,
         externalCampaignId: editForm.externalCampaignId || null,
       });
-      toast({ type: 'success', title: 'Campaign updated!' });
+      toast(res.spendSynced
+        ? { type: 'success', title: 'Campaign linked!', description: 'Ad spend was synced from Meta.' }
+        : { type: 'success', title: 'Campaign updated!' });
       setEditCampaign(null);
       fetchCampaigns();
     } catch (err: unknown) {
@@ -639,7 +641,10 @@ export default function CampaignsPage() {
                   </p>
                   {editForm.externalCampaignId ? (
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-[#64748b] font-mono truncate">{editForm.externalCampaignId}</p>
+                      <p className="text-xs text-[#64748b] truncate">
+                        {metaCampaigns.find((mc) => mc.id === editForm.externalCampaignId)?.name ?? 'Meta campaign'}{' '}
+                        <span className="font-mono text-[#94a3b8]">#{editForm.externalCampaignId}</span>
+                      </p>
                       <button
                         type="button"
                         onClick={() => setEditForm((p) => ({ ...p, externalCampaignId: '' }))}

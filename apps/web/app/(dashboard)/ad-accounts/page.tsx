@@ -44,7 +44,7 @@ function AdAccountsInner() {
     const accounts = searchParams.get('accounts');
     const metaError = searchParams.get('meta_error');
     if (connected === 'meta') {
-      toast({ type: 'success', title: 'Meta connected!', description: `${accounts ?? '0'} ad account(s) linked.` });
+      toast({ type: 'success', title: 'Meta connected!', description: `${accounts ?? '0'} ad account(s) linked. Next: open a campaign and link it to its Meta campaign.` });
       fetchConnections();
     } else if (metaError) {
       toast({ type: 'error', title: 'Meta connection failed', description: decodeURIComponent(metaError) });

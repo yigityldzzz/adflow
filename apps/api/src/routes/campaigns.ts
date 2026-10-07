@@ -5,6 +5,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { CampaignStatus } from '@prisma/client';
 import { limitFor } from '../config/planLimits';
 import { loadEffectivePlan } from '../services/planAccess';
+import { syncMetaConnection } from '../services/adAccountScheduler';
 import { getTeamUserIds } from '../services/team';
 
 const router = Router();
@@ -226,7 +227,26 @@ router.patch('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
     await recordManualSpendDelta(campaign.id, delta);
   }
 
-  res.json({ campaign });
+  // Newly linked to a Meta campaign: pull its spend now instead of waiting
+  // for the 6-hourly sync. Best effort — the link itself is already saved.
+  let spendSynced = false;
+  if (parse.data.externalCampaignId && parse.data.externalCampaignId !== existing.externalCampaignId) {
+    const connections = await prisma.adAccountConnection.findMany({
+      where: { userId: { in: teamIds }, platform: 'meta' },
+      select: { id: true },
+    });
+    for (const conn of connections) {
+      try {
+        await syncMetaConnection(conn.id);
+        spendSynced = true;
+      } catch (err) {
+        console.error('[campaigns] spend sync after linking failed', conn.id, err instanceof Error ? err.message : err);
+      }
+    }
+  }
+
+  const fresh = spendSynced ? await prisma.campaign.findUnique({ where: { id } }) : campaign;
+  res.json({ campaign: fresh ?? campaign, spendSynced });
 });
 
 // DELETE /api/campaigns/:id
