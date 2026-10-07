@@ -496,22 +496,22 @@ export default function AlertsPage() {
                   <span className="text-[#6366f1]">{form.threshold || '?'}{form.metric === 'bot_rate' ? '%' : form.metric === 'revenue' || form.metric === 'cpa' ? ' USD' : ''}</span>
                 </p>
               </div>
-
-              <div className="flex gap-3 pt-1">
                 <div>
                   <label className="block text-xs font-medium text-[#64748b] mb-1.5">
-                    Webhook URL <span className="text-[#94a3b8]">(opsiyonel — alert tetiklenince POST atar)</span>
+                    Webhook URL <span className="text-[#94a3b8]">(optional — sends a POST when the alert fires)</span>
                   </label>
                   <input
                     type="url"
                     value={form.webhookUrl}
                     onChange={(e) => setForm((p) => ({ ...p, webhookUrl: e.target.value }))}
-                    placeholder="https://hooks.slack.com/... veya n8n/Make webhook"
+                    placeholder="https://hooks.slack.com/... or n8n/Make webhook"
                     className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] placeholder-[#94a3b8] focus:outline-none focus:border-[#6366f1] transition-colors"
                   />
-                  <p className="text-[11px] text-[#94a3b8] mt-1">Alert koşulu ilk kez gerçekleştiğinde JSON payload ile tetiklenir.</p>
+                  <p className="text-[11px] text-[#94a3b8] mt-1">Fires with a JSON payload the first time the alert condition is met.</p>
                 </div>
 
+
+              <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:text-[#0f172a] hover:bg-[#e2e8f0] transition-colors">
                   Cancel
                 </button>

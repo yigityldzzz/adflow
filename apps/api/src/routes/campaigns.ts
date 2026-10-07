@@ -64,6 +64,11 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
       cost: c.cost,
       externalCampaignId: c.externalCampaignId,
       costSyncedAt: c.costSyncedAt,
+      // The edit modal pre-fills these — without them it always showed "None".
+      trafficSourceId: c.trafficSourceId,
+      flowId: c.flowId,
+      trafficSource: c.trafficSource,
+      flow: c.flow,
       createdAt: c.createdAt,
       stats: {
         totalClicks,

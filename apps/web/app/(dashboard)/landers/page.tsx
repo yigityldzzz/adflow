@@ -105,7 +105,7 @@ export default function LandersPage() {
             </div>
             <div className="text-left">
               <p className="text-sm font-semibold text-[#0f172a]">LP Tracking Script</p>
-              <p className="text-xs text-[#94a3b8]">Landing page\'inize ekleyin — fbclid&apos;i yakalar, conversion\'u takip eder</p>
+              <p className="text-xs text-[#94a3b8]">Add it to your landing page — captures fbclid and tracks conversions</p>
             </div>
           </div>
           <ChevronDown className={`w-4 h-4 text-[#94a3b8] transition-transform ${showScript ? "rotate-180" : ""}`} />
@@ -116,15 +116,15 @@ export default function LandersPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div className="flex items-start gap-2 p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
                 <span className="text-base">1️⃣</span>
-                <div><p className="font-semibold text-[#0f172a] mb-0.5">Script&apos;i LP&apos;ye ekle</p><p className="text-[#94a3b8]">{"<head>"} içine yapıştır</p></div>
+                <div><p className="font-semibold text-[#0f172a] mb-0.5">Add the script to your LP</p><p className="text-[#94a3b8]">Paste it inside {"<head>"}</p></div>
               </div>
               <div className="flex items-start gap-2 p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
                 <span className="text-base">2️⃣</span>
-                <div><p className="font-semibold text-[#0f172a] mb-0.5">Meta reklam URL&apos;ini AdFlow linki yap</p><p className="text-[#94a3b8]">adflow.digitaladexpert.de/r/SLUG</p></div>
+                <div><p className="font-semibold text-[#0f172a] mb-0.5">Use your AdFlow link as the Meta ad URL</p><p className="text-[#94a3b8]">adflow.digitaladexpert.de/r/SLUG</p></div>
               </div>
               <div className="flex items-start gap-2 p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
                 <span className="text-base">3️⃣</span>
-                <div><p className="font-semibold text-[#0f172a] mb-0.5">Conversion postback bağla</p><p className="text-[#94a3b8]">CAPI otomatik ateşlenir</p></div>
+                <div><p className="font-semibold text-[#0f172a] mb-0.5">Connect the conversion postback</p><p className="text-[#94a3b8]">CAPI fires automatically</p></div>
               </div>
             </div>
 
@@ -144,7 +144,7 @@ export default function LandersPage() {
     document.cookie=n+'='+encodeURIComponent(v)+';path=/;expires='+d.toUTCString()+';SameSite=Lax';
   }
 
-  // fbclid ve visitorId yakala
+  // Capture fbclid and visitorId
   var params=new URLSearchParams(window.location.search);
   var fbclid=params.get('fbclid');
   if(fbclid){ setCookie(ADFLOW_FB,fbclid,7); localStorage.setItem(ADFLOW_FB,fbclid); }
@@ -152,7 +152,7 @@ export default function LandersPage() {
 
   var visitorId=params.get('adflow_vid')||getCookie(ADFLOW_VID);
 
-  // Tüm çıkış linklerine parametreleri ekle
+  // Append the parameters to all outbound links
   function enhanceLink(a){
     try{
       if(!a.href||a.href.indexOf('javascript')==0||a.href.indexOf('#')==0)return;
@@ -197,18 +197,18 @@ export default function LandersPage() {
 })();
 <\/script>`;
                   navigator.clipboard.writeText(script);
-                  alert('Script kopyalandı!');
+                  alert('Script copied!');
                 }}
                 className="absolute top-3 right-3 flex items-center gap-1.5 bg-[#1e293b] hover:bg-[#334155] text-[#a5b4fc] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
               >
-                <Copy className="w-3 h-3" /> Kopyala
+                <Copy className="w-3 h-3" /> Copy
               </button>
             </div>
 
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-xs font-bold text-amber-700 mb-1">⚡ Nasıl çalışır?</p>
+              <p className="text-xs font-bold text-amber-700 mb-1">⚡ How it works</p>
               <p className="text-xs text-amber-600 leading-relaxed">
-                Meta reklamına tıklayan kullanıcı AdFlow linkine yönlenir → <strong>fbclid</strong> ve <strong>adflow_vid</strong> yakalanır → LP&apos;de script tüm linklere bu parametreleri ekler → Kullanıcı form doldurup dönüştüğünde postback gelir → AdFlow <strong>fbclid&apos;i click kaydından alır</strong> → Meta CAPI&apos;ye &ldquo;Purchase&rdquo; eventi atar → Meta algoritması hangi reklamın dönüştüğünü öğrenir.
+                A user who clicks your Meta ad is sent to the AdFlow link → <strong>fbclid</strong> and <strong>adflow_vid</strong> are captured → on the LP, the script appends these parameters to all links → when the user fills out the form and converts, the postback arrives → AdFlow <strong>looks up the fbclid from the click record</strong> → sends a &ldquo;Purchase&rdquo; event to Meta CAPI → Meta&apos;s algorithm learns which ad converted.
               </p>
             </div>
 
@@ -216,15 +216,15 @@ export default function LandersPage() {
             <div className="border border-blue-200 rounded-xl overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border-b border-blue-200">
                 <span className="text-sm">📘</span>
-                <p className="text-xs font-bold text-blue-700">Meta Browser Pixel — Sinyal Gücünü 2x Artırır</p>
-                <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 bg-blue-100 border border-blue-300 rounded-full text-blue-600">ÖNERİLEN</span>
+                <p className="text-xs font-bold text-blue-700">Meta Browser Pixel — Stronger Signal for Meta</p>
+                <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 bg-blue-100 border border-blue-300 rounded-full text-blue-600">RECOMMENDED</span>
               </div>
               <div className="p-4 space-y-3">
                 <p className="text-xs text-[#64748b] leading-relaxed">
-                  Meta, aynı eventi hem <strong>tarayıcıdan (pixel)</strong> hem <strong>sunucudan (CAPI)</strong> alırsa eşleştirir — bu &ldquo;sinyal kopyalama&rdquo; match quality&apos;yi yükseltir, maliyeti düşürür. LP sayfana aşağıdaki kodu da ekle:
+                  When Meta receives the same event from both the <strong>browser (pixel)</strong> and the <strong>server (CAPI)</strong>, it matches them — this &ldquo;signal redundancy&rdquo; raises match quality and lowers costs. Add the code below to your LP as well:
                 </p>
                 <div className="relative">
-                  <pre className="bg-[#0f172a] text-[#86efac] text-[11px] p-4 rounded-xl overflow-x-auto leading-relaxed font-mono whitespace-pre-wrap">{`<!-- Meta Pixel Base Code — <head> içine ekle (AdFlow script'inden ÖNCE) -->
+                  <pre className="bg-[#0f172a] text-[#86efac] text-[11px] p-4 rounded-xl overflow-x-auto leading-relaxed font-mono whitespace-pre-wrap">{`<!-- Meta Pixel Base Code — add inside <head> (BEFORE the AdFlow script) -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
@@ -232,32 +232,32 @@ n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 
-fbq('init', 'PIXEL_ID_BURAYA');  // ← Meta Events Manager'dan aldığın Pixel ID
+fbq('init', 'YOUR_PIXEL_ID');  // ← Pixel ID from Meta Events Manager
 fbq('track', 'PageView');
 </script>`}</pre>
                   <button
                     onClick={() => {
-                      const s = `<!-- Meta Pixel Base Code -->\n<script>\n!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?\nn.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;\nn.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;\nt.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,\ndocument,'script','https://connect.facebook.net/en_US/fbevents.js');\n\nfbq('init', 'PIXEL_ID_BURAYA');\nfbq('track', 'PageView');\n<\/script>`;
+                      const s = `<!-- Meta Pixel Base Code -->\n<script>\n!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?\nn.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;\nn.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;\nt.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,\ndocument,'script','https://connect.facebook.net/en_US/fbevents.js');\n\nfbq('init', 'YOUR_PIXEL_ID');\nfbq('track', 'PageView');\n<\/script>`;
                       navigator.clipboard.writeText(s);
-                      alert('Pixel kodu kopyalandı!');
+                      alert('Pixel code copied!');
                     }}
                     className="absolute top-3 right-3 flex items-center gap-1.5 bg-[#1e293b] hover:bg-[#334155] text-[#86efac] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    <Copy className="w-3 h-3" /> Kopyala
+                    <Copy className="w-3 h-3" /> Copy
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                   <div className="p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-lg">
-                    <p className="font-semibold text-[#0f172a] mb-1">1. Pixel ID al</p>
-                    <p className="text-[#94a3b8]">Meta Events Manager → Datasets → ID&apos;yi kopyala</p>
+                    <p className="font-semibold text-[#0f172a] mb-1">1. Get your Pixel ID</p>
+                    <p className="text-[#94a3b8]">Meta Events Manager → Datasets → copy the ID</p>
                   </div>
                   <div className="p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-lg">
-                    <p className="font-semibold text-[#0f172a] mb-1">2. LP&apos;ye ekle</p>
-                    <p className="text-[#94a3b8]">AdFlow script&apos;inden önce, {"<head>"} içine yapıştır</p>
+                    <p className="font-semibold text-[#0f172a] mb-1">2. Add it to your LP</p>
+                    <p className="text-[#94a3b8]">Paste it inside {"<head>"}, before the AdFlow script</p>
                   </div>
                   <div className="p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-lg">
-                    <p className="font-semibold text-[#0f172a] mb-1">3. Otomatik çalışır</p>
-                    <p className="text-[#94a3b8]">PageView browser&apos;dan, Purchase CAPI&apos;den — Meta eşleştirir</p>
+                    <p className="font-semibold text-[#0f172a] mb-1">3. Runs automatically</p>
+                    <p className="text-[#94a3b8]">PageView from the browser, Purchase from CAPI — Meta matches them</p>
                   </div>
                 </div>
               </div>

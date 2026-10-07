@@ -309,7 +309,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-[10px] text-[#64748b] mb-2.5 leading-relaxed">
             {trialDaysLeft !== null
               ? 'Subscribe now to keep Pro features when your trial ends.'
-              : 'Unlock unlimited links, AI insights, and 1M clicks/month.'}
+              : 'Unlock unlimited campaigns, links and clicks, plus AI insights.'}
           </p>
           <button
             onClick={handleUpgrade}

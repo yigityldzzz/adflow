@@ -151,27 +151,41 @@ async function getAdAccountCurrency(accessToken: string, adAccountId: string): P
 
 // Historical daily FX rates via the ECB-backed, free/keyless Frankfurter API.
 // Returns a date -> rate map (1 unit of `fromCurrency` = rate USD).
+// api.frankfurter.app now 301-redirects to this host, so call it directly.
+// A few attempts, because a single slow response used to time out.
 async function fetchUsdExchangeRates(
   fromCurrency: string,
   since: Date,
   until: Date
 ): Promise<Map<string, number>> {
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  const url = `https://api.frankfurter.app/${fmt(since)}..${fmt(until)}?from=${fromCurrency}&to=USD`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!resp.ok) throw new Error(`Exchange rate lookup failed: HTTP ${resp.status}`);
-  const json = (await resp.json()) as { rates: Record<string, { USD: number }> };
+  const url = `https://api.frankfurter.dev/v1/${fmt(since)}..${fmt(until)}?from=${encodeURIComponent(fromCurrency)}&to=USD`;
 
-  const rates = new Map<string, number>();
-  for (const [date, dayRates] of Object.entries(json.rates)) {
-    rates.set(date, dayRates.USD);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) throw new Error(`Exchange rate lookup failed: HTTP ${resp.status}`);
+      const json = (await resp.json()) as { rates?: Record<string, { USD?: number }> };
+
+      const rates = new Map<string, number>();
+      for (const [date, dayRates] of Object.entries(json.rates ?? {})) {
+        if (typeof dayRates.USD === 'number' && dayRates.USD > 0) rates.set(date, dayRates.USD);
+      }
+      if (rates.size === 0) throw new Error(`Exchange rate lookup returned no ${fromCurrency}->USD rates`);
+      return rates;
+    } catch (err) {
+      lastError = err;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
   }
-  return rates;
+  throw lastError;
 }
 
 // ECB publishes no rate for weekends/holidays, so a spend day can miss the
-// map — walk backward to the nearest earlier trading day's rate instead of
-// dropping the conversion.
+// map — walk backward to the nearest earlier trading day's rate. Days at the
+// very start of the range (e.g. a Sunday) fall back to the closest rate in the
+// map. Never returns 1: storing a TRY amount as USD would inflate cost ~50x.
 function rateForDate(rates: Map<string, number>, dateStr: string): number {
   const d = new Date(`${dateStr}T00:00:00Z`);
   for (let i = 0; i < 14; i++) {
@@ -179,7 +193,14 @@ function rateForDate(rates: Map<string, number>, dateStr: string): number {
     if (rate !== undefined) return rate;
     d.setUTCDate(d.getUTCDate() - 1);
   }
-  return 1; // no rate found in 2 weeks — better to keep the raw number than silently zero it out
+  const target = new Date(`${dateStr}T00:00:00Z`).getTime();
+  let best: { diff: number; rate: number } | null = null;
+  for (const [date, rate] of rates) {
+    const diff = Math.abs(new Date(`${date}T00:00:00Z`).getTime() - target);
+    if (!best || diff < best.diff) best = { diff, rate };
+  }
+  if (!best) throw new Error(`No exchange rate available for ${dateStr}`);
+  return best.rate;
 }
 
 // Same as fetchCampaignSpend but broken down per day (via time_increment),
@@ -215,15 +236,12 @@ export async function fetchCampaignDailySpend(
     getAdAccountCurrency(accessToken, adAccountId),
   ]);
 
+  // If the FX lookup fails this throws, so the sync is skipped and the last
+  // correctly converted numbers stay in place until the next run. (It used to
+  // store the raw local-currency amount as USD — e.g. 2,141 TRY as $2,141.)
   let rates: Map<string, number> | null = null;
   if (currency !== 'USD') {
-    try {
-      rates = await fetchUsdExchangeRates(currency, since, until);
-    } catch (err) {
-      // FX API hiccup shouldn't take down spend syncing — fall back to the
-      // raw (unconverted) number rather than losing the sync entirely.
-      console.error(`fetchCampaignDailySpend: exchange rate lookup failed for ${currency}, storing unconverted:`, err);
-    }
+    rates = await fetchUsdExchangeRates(currency, since, until);
   }
 
   return res.data.map((row) => {

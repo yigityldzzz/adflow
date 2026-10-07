@@ -136,7 +136,7 @@ export default function FlowsPage() {
     e.preventDefault();
     if (formLoading) return;
     if (mode === 'ab' && totalWeight !== 100) {
-      setFormError(`Toplam ağırlık 100 olmalı (şu an: ${totalWeight})`);
+      setFormError(`Total weight must be 100 (currently ${totalWeight})`);
       return;
     }
     setFormError(''); setFormLoading(true);
@@ -158,7 +158,7 @@ export default function FlowsPage() {
         }));
       }
       await api.post('/api/flows', payload);
-      toast({ type: 'success', title: 'Flow oluşturuldu!', description: `"${form.name}" hazır.` });
+      toast({ type: 'success', title: 'Flow created!', description: `"${form.name}" is ready.` });
       setShowModal(false);
       fetchAll();
     } catch (err: unknown) {
@@ -170,11 +170,11 @@ export default function FlowsPage() {
     setDeleting(true);
     try {
       await api.delete(`/api/flows/${id}`);
-      toast({ type: 'success', title: 'Silindi' });
+      toast({ type: 'success', title: 'Deleted' });
       setFlows(p => p.filter(f => f.id !== id));
       setDeleteId(null);
     } catch (err: unknown) {
-      toast({ type: 'error', title: 'Silinemedi', description: err instanceof Error ? err.message : undefined });
+      toast({ type: 'error', title: 'Delete failed', description: err instanceof Error ? err.message : undefined });
     } finally { setDeleting(false); }
   };
 
@@ -186,7 +186,7 @@ export default function FlowsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-[#0f172a]">Flows</h2>
-          <p className="text-sm text-[#94a3b8] mt-0.5">{flows.length} flow</p>
+          <p className="text-sm text-[#94a3b8] mt-0.5">{flows.length} {flows.length === 1 ? 'flow' : 'flows'}</p>
         </div>
         <button onClick={openModal}
           className="inline-flex items-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-md shadow-indigo-500/20">
@@ -197,7 +197,7 @@ export default function FlowsPage() {
       {flows.length > 0 && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-          <input type="text" placeholder="Flow ara…" value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search flows…" value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 bg-[#ffffff] border border-[#e2e8f0] rounded-xl text-sm text-[#0f172a] placeholder-[#94a3b8] focus:outline-none focus:border-[#6366f1] transition-colors" />
         </div>
       )}
@@ -213,12 +213,12 @@ export default function FlowsPage() {
             <GitBranch className="w-8 h-8 text-[#94a3b8]" />
           </div>
           <div className="text-center">
-            <p className="text-base font-semibold text-[#64748b] mb-1">{search ? 'Flow bulunamadı' : 'Henüz flow yok'}</p>
-            <p className="text-sm text-[#94a3b8] max-w-xs">Trafiği yönlendirmek veya A/B test yapmak için flow oluştur.</p>
+            <p className="text-base font-semibold text-[#64748b] mb-1">{search ? 'No flows found' : 'No flows yet'}</p>
+            <p className="text-sm text-[#94a3b8] max-w-xs">Create a flow to route traffic or run A/B tests.</p>
           </div>
           {!search && (
             <button onClick={openModal} className="mt-2 inline-flex items-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-              <Plus className="w-4 h-4" /> İlk Flow&apos;u Oluştur
+              <Plus className="w-4 h-4" /> Create First Flow
             </button>
           )}
         </div>
@@ -240,7 +240,7 @@ export default function FlowsPage() {
                           <FlaskConical className="w-2.5 h-2.5" /> A/B Test
                         </span>
                       )}
-                      {flow.rules.length > 0 && <span className="text-xs text-[#94a3b8]">{flow.rules.length} kural</span>}
+                      {flow.rules.length > 0 && <span className="text-xs text-[#94a3b8]">{flow.rules.length} {flow.rules.length === 1 ? 'rule' : 'rules'}</span>}
                     </div>
                     <h3 className="text-sm font-semibold text-[#0f172a] truncate">{flow.name}</h3>
                   </div>
@@ -274,7 +274,7 @@ export default function FlowsPage() {
                 ) : (
                   <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-[#e2e8f0] flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs bg-[#f8fafc] rounded-lg px-2.5 py-1.5 border border-[#e2e8f0]">
-                      <span className="text-[#94a3b8]">Kaynak:</span>
+                      <span className="text-[#94a3b8]">Source:</span>
                       <span className="text-[#64748b] font-medium">{source?.name ?? '—'}</span>
                     </div>
                     <ArrowRight className="w-3 h-3 text-[#e2e8f0] flex-shrink-0" />
@@ -307,7 +307,7 @@ export default function FlowsPage() {
             <div className="sticky top-0 bg-[#ffffff] flex items-center justify-between p-6 pb-4 border-b border-[#e2e8f0] z-10">
               <div>
                 <h3 className="text-base font-bold text-[#0f172a]">New Flow</h3>
-                <p className="text-xs text-[#94a3b8] mt-0.5">Trafiği yönlendir veya A/B test kur</p>
+                <p className="text-xs text-[#94a3b8] mt-0.5">Route traffic or set up an A/B test</p>
               </div>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
                 <X className="w-4 h-4" />
@@ -324,9 +324,9 @@ export default function FlowsPage() {
 
               {/* Name */}
               <div>
-                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Flow Adı *</label>
+                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Flow Name *</label>
                 <input type="text" required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="örn. Meta → Quiz LP → Kayıt"
+                  placeholder="e.g. Meta → Quiz LP → Sign-up"
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] placeholder-[#94a3b8] focus:outline-none focus:border-[#6366f1] transition-colors" />
               </div>
 
@@ -342,11 +342,11 @@ export default function FlowsPage() {
 
               {/* Mode toggle */}
               <div>
-                <p className="text-xs font-medium text-[#64748b] mb-2">Routing Modu</p>
+                <p className="text-xs font-medium text-[#64748b] mb-2">Routing Mode</p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setMode('simple')}
                     className={`flex-1 py-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${mode === 'simple' ? 'border-[#6366f1] bg-[#6366f1]/10 text-[#6366f1]' : 'border-[#e2e8f0] bg-[#f8fafc] text-[#94a3b8] hover:border-[#cbd5e1]'}`}>
-                    <GitBranch className="w-3.5 h-3.5" /> Basit Yönlendirme
+                    <GitBranch className="w-3.5 h-3.5" /> Simple Routing
                   </button>
                   <button type="button" onClick={() => setMode('ab')}
                     className={`flex-1 py-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${mode === 'ab' ? 'border-purple-400 bg-purple-50 text-purple-600' : 'border-[#e2e8f0] bg-[#f8fafc] text-[#94a3b8] hover:border-[#cbd5e1]'}`}>
@@ -359,10 +359,10 @@ export default function FlowsPage() {
               {mode === 'simple' && (
                 <div className="space-y-3 p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
                   <div>
-                    <label className="block text-[11px] text-[#94a3b8] mb-1">Lander (opsiyonel)</label>
+                    <label className="block text-[11px] text-[#94a3b8] mb-1">Lander (optional)</label>
                     <select value={simpleLander} onChange={e => setSimpleLander(e.target.value)}
                       className="w-full bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors">
-                      <option value="">— Lander yok —</option>
+                      <option value="">— No lander —</option>
                       {landers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
@@ -373,7 +373,7 @@ export default function FlowsPage() {
                     <label className="block text-[11px] text-[#94a3b8] mb-1">Offer</label>
                     <select value={simpleOffer} onChange={e => setSimpleOffer(e.target.value)}
                       className="w-full bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors">
-                      <option value="">— Offer seç —</option>
+                      <option value="">— Select offer —</option>
                       {offers.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
                   </div>
@@ -388,11 +388,11 @@ export default function FlowsPage() {
                     <div className="flex gap-2">
                       <button type="button" onClick={autoBalance}
                         className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors px-2 py-1 border border-[#6366f1]/30 rounded-lg">
-                        Eşitle
+                        Split Evenly
                       </button>
                       <button type="button" onClick={addPath}
                         className="text-xs text-[#6366f1] hover:text-[#818cf8] flex items-center gap-1 transition-colors">
-                        <Plus className="w-3 h-3" /> Path Ekle
+                        <Plus className="w-3 h-3" /> Add Path
                       </button>
                     </div>
                   </div>
@@ -408,7 +408,7 @@ export default function FlowsPage() {
                     })}
                   </div>
                   <p className={`text-xs ${totalWeight === 100 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                    Toplam: {totalWeight}% {totalWeight !== 100 ? '(100 olmalı)' : '✓'}
+                    Total: {totalWeight}% {totalWeight !== 100 ? '(must be 100)' : '✓'}
                   </p>
 
                   {paths.map((path, i) => {
@@ -417,7 +417,7 @@ export default function FlowsPage() {
                     return (
                       <div key={i} className={`border rounded-xl p-3 space-y-2 ${colors[i % colors.length]}`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#0f172a]">Varyant {labels[i]}</span>
+                          <span className="text-xs font-bold text-[#0f172a]">Variant {labels[i]}</span>
                           <div className="flex items-center gap-2">
                             <input type="number" min={1} max={99} value={path.weight}
                               onChange={e => updatePath(i, { weight: parseInt(e.target.value) || 0 })}
@@ -458,14 +458,14 @@ export default function FlowsPage() {
               {/* Conditional Rules */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-[#64748b]">Koşullu Kurallar (opsiyonel)</p>
+                  <p className="text-xs font-medium text-[#64748b]">Conditional Rules (optional)</p>
                   <button type="button" onClick={addRule}
                     className="text-xs text-[#6366f1] hover:text-[#818cf8] flex items-center gap-1 transition-colors">
-                    <Plus className="w-3 h-3" /> Kural Ekle
+                    <Plus className="w-3 h-3" /> Add Rule
                   </button>
                 </div>
                 {rules.length === 0 && (
-                  <p className="text-xs text-[#94a3b8] italic">Kural yok — tüm trafik yukarıdaki patha gider</p>
+                  <p className="text-xs text-[#94a3b8] italic">No rules — all traffic goes to the path above</p>
                 )}
                 <div className="space-y-2">
                   {rules.map((rule, i) => (
@@ -509,9 +509,9 @@ export default function FlowsPage() {
               </div>
 
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">İptal</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
                 <button type="submit" disabled={formLoading} className="flex-1 flex items-center justify-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-                  {formLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Flow Oluştur
+                  {formLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create Flow
                 </button>
               </div>
             </form>
@@ -526,13 +526,13 @@ export default function FlowsPage() {
           <div className="relative bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-slide-up">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-[#ef4444]/10 flex items-center justify-center"><Trash2 className="w-5 h-5 text-[#ef4444]" /></div>
-              <div><h3 className="text-sm font-bold text-[#0f172a]">Flow Sil</h3><p className="text-xs text-[#64748b]">Bu işlem geri alınamaz</p></div>
+              <div><h3 className="text-sm font-bold text-[#0f172a]">Delete Flow</h3><p className="text-xs text-[#64748b]">This action cannot be undone</p></div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">İptal</button>
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
               <button onClick={() => handleDelete(deleteId)} disabled={deleting}
                 className="flex-1 flex items-center justify-center gap-2 bg-[#ef4444] hover:bg-[#dc2626] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Sil
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Delete
               </button>
             </div>
           </div>

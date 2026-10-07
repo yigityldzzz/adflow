@@ -307,7 +307,7 @@ export default function TrafficSourcesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-5">
+            <form onSubmit={handleCreate} autoComplete="off" className="p-6 space-y-5">
               {formError && (
                 <div className="flex items-start gap-2 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl">
                   <AlertCircle className="w-4 h-4 text-[#ef4444] flex-shrink-0 mt-0.5" />
@@ -318,7 +318,7 @@ export default function TrafficSourcesPage() {
               {/* Name */}
               <div>
                 <label className="block text-xs font-medium text-[#64748b] mb-1.5">Name *</label>
-                <input
+                <input autoComplete="off"
                   type="text" required value={form.name}
                   onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder="e.g. Meta Ads – Main"
@@ -374,15 +374,15 @@ export default function TrafficSourcesPage() {
                     <span className="text-base">📘</span>
                     <div>
                       <p className="text-xs font-bold text-blue-700">Meta Conversions API (CAPI)</p>
-                      <p className="text-[11px] text-blue-500 mt-0.5">Otomatik server-side pixel eventi — algoritma optimize eder</p>
+                      <p className="text-[11px] text-blue-500 mt-0.5">Automatic server-side pixel events — helps the algorithm optimize</p>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-blue-700 mb-1.5">
-                      Pixel ID <span className="text-blue-400 font-normal">(Meta Events Manager&apos;dan)</span>
+                      Pixel ID <span className="text-blue-400 font-normal">(from Meta Events Manager)</span>
                     </label>
-                    <input
+                    <input autoComplete="off" name="adflow-pixel-id" data-1p-ignore data-lpignore="true"
                       type="text" value={form.pixelId}
                       onChange={(e) => setForm((p) => ({ ...p, pixelId: e.target.value }))}
                       placeholder="1234567890123456"
@@ -392,10 +392,10 @@ export default function TrafficSourcesPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-blue-700 mb-1.5">
-                      Access Token <span className="text-blue-400 font-normal">(Events Manager → Conversions API → Token Oluştur)</span>
+                      Access Token <span className="text-blue-400 font-normal">(Events Manager → Conversions API → Generate Token)</span>
                     </label>
                     <div className="relative">
-                      <input
+                      <input autoComplete="new-password" name="adflow-capi-token" data-1p-ignore data-lpignore="true"
                         type={showToken ? 'text' : 'password'} value={form.accessToken}
                         onChange={(e) => setForm((p) => ({ ...p, accessToken: e.target.value }))}
                         placeholder="EAA…"
@@ -423,7 +423,7 @@ export default function TrafficSourcesPage() {
                       ))}
                     </select>
                     <p className="text-[11px] text-blue-500 mt-1.5">
-                      Postback gelince Meta&apos;ya otomatik &ldquo;{form.fbEventName}&rdquo; eventi gönderilecek.
+                      When a postback arrives, a &ldquo;{form.fbEventName}&rdquo; event is sent to Meta automatically.
                     </p>
                   </div>
                 </div>
@@ -439,7 +439,7 @@ export default function TrafficSourcesPage() {
                         {form.platform === 'tiktok' ? 'TikTok Events API' : 'Snapchat Conversions API'}
                       </p>
                       <p className={`text-[11px] mt-0.5 ${form.platform === 'tiktok' ? 'text-pink-500' : 'text-yellow-600'}`}>
-                        Otomatik server-side conversion eventi
+                        Automatic server-side conversion events
                       </p>
                     </div>
                   </div>
@@ -448,7 +448,7 @@ export default function TrafficSourcesPage() {
                     <label className={`block text-xs font-medium mb-1.5 ${form.platform === 'tiktok' ? 'text-pink-700' : 'text-yellow-700'}`}>
                       {form.platform === 'tiktok' ? 'Pixel Code (event_source_id)' : 'Pixel ID'}
                     </label>
-                    <input
+                    <input autoComplete="off" name="adflow-pixel-id" data-1p-ignore data-lpignore="true"
                       type="text" value={form.pixelId}
                       onChange={(e) => setForm((p) => ({ ...p, pixelId: e.target.value }))}
                       placeholder={form.platform === 'tiktok' ? 'CXXXXXXXXXXXXXXXXXXX' : 'a1b2c3d4-...'}
@@ -461,7 +461,7 @@ export default function TrafficSourcesPage() {
                       Access Token <span className="font-normal opacity-70">({form.platform === 'tiktok' ? 'Events Manager → Set up Events API' : 'Business Manager → Conversions API'})</span>
                     </label>
                     <div className="relative">
-                      <input
+                      <input autoComplete="new-password" name="adflow-capi-token" data-1p-ignore data-lpignore="true"
                         type={showToken ? 'text' : 'password'} value={form.accessToken}
                         onChange={(e) => setForm((p) => ({ ...p, accessToken: e.target.value }))}
                         placeholder="••••••••"
@@ -491,8 +491,8 @@ export default function TrafficSourcesPage() {
                   </div>
 
                   <p className={`text-[11px] leading-relaxed ${form.platform === 'tiktok' ? 'text-pink-500' : 'text-yellow-600'}`}>
-                    Bu, ancak tıklama {form.platform === 'tiktok' ? 'TikTok\'un ttclid' : 'Snapchat\'in sccid'} parametresiyle geldiyse ateşlenir
-                    (reklam linkinde bu parametre otomatik gelir, elle eklemene gerek yok).
+                    This only fires if the click came with {form.platform === 'tiktok' ? 'TikTok\'s ttclid' : 'Snapchat\'s sccid'} parameter
+                    (the ad link adds this parameter automatically; you don&apos;t need to add it manually).
                   </p>
                 </div>
               )}
@@ -500,9 +500,9 @@ export default function TrafficSourcesPage() {
               {/* Postback URL */}
               <div>
                 <label className="block text-xs font-medium text-[#64748b] mb-1.5">
-                  Postback URL <span className="text-[#94a3b8]">(opsiyonel)</span>
+                  Postback URL <span className="text-[#94a3b8]">(optional)</span>
                 </label>
-                <input
+                <input autoComplete="off"
                   type="text" value={form.postbackUrl}
                   onChange={(e) => setForm((p) => ({ ...p, postbackUrl: e.target.value }))}
                   placeholder="https://tracker.example.com/postback?clickid={clickid}"
@@ -519,17 +519,17 @@ export default function TrafficSourcesPage() {
                   ))}
                 </div>
                 <p className="text-[11px] text-[#94a3b8] mt-1.5 leading-relaxed">
-                  Bir dönüşüm kaydedildiğinde AdFlow bu URL&apos;e otomatik bir GET isteği atar, yukarıdaki token&apos;ları gerçek değerlerle
-                  değiştirerek (ör. <code className="font-mono text-[#6366f1]">{'{clickid}'}</code> → ağın orijinal click id&apos;si,{' '}
-                  <code className="font-mono text-[#6366f1]">{'{cost}'}</code> → dönüşüm değeri). Domain/path kısmını kendi ağınızın
-                  postback formatına göre siz düzenlemelisiniz — token isimleri dışındaki kısım ağdan ağa değişir.
+                  When a conversion is recorded, AdFlow automatically sends a GET request to this URL, replacing the tokens above with real values
+                  (e.g. <code className="font-mono text-[#6366f1]">{'{clickid}'}</code> → the network&apos;s original click ID,{' '}
+                  <code className="font-mono text-[#6366f1]">{'{cost}'}</code> → the conversion value). You need to adjust the domain/path to match your network&apos;s
+                  postback format — everything other than the token names varies from network to network.
                 </p>
               </div>
 
               {/* Tags */}
               <div>
-                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Tags <span className="text-[#94a3b8]">(virgülle ayrılmış)</span></label>
-                <input
+                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Tags <span className="text-[#94a3b8]">(comma separated)</span></label>
+                <input autoComplete="off"
                   type="text" value={form.tags}
                   onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
                   placeholder="retargeting, lookalike, brand"
@@ -562,7 +562,7 @@ export default function TrafficSourcesPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleUpdate} className="p-6 space-y-4">
+            <form onSubmit={handleUpdate} autoComplete="off" className="p-6 space-y-4">
               {editError && (
                 <div className="flex items-start gap-2 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl">
                   <AlertCircle className="w-4 h-4 text-[#ef4444] flex-shrink-0 mt-0.5" />
@@ -571,7 +571,7 @@ export default function TrafficSourcesPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-[#64748b] mb-1.5">Name *</label>
-                <input type="text" required value={editForm.name} onChange={(e) => setEditForm(p => ({ ...p, name: e.target.value }))}
+                <input autoComplete="off" type="text" required value={editForm.name} onChange={(e) => setEditForm(p => ({ ...p, name: e.target.value }))}
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
               </div>
               <div>
@@ -590,22 +590,22 @@ export default function TrafficSourcesPage() {
                   <p className="text-xs font-semibold text-blue-700">Meta Conversions API (CAPI)</p>
                   <div>
                     <label className="block text-xs font-medium text-[#64748b] mb-1.5">Pixel ID</label>
-                    <input type="text" value={editForm.pixelId} onChange={(e) => setEditForm(p => ({ ...p, pixelId: e.target.value }))}
+                    <input autoComplete="off" name="adflow-pixel-id" data-1p-ignore data-lpignore="true" type="text" value={editForm.pixelId} onChange={(e) => setEditForm(p => ({ ...p, pixelId: e.target.value }))}
                       placeholder="1305383161794857"
                       className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#64748b] mb-1.5">Access Token</label>
                     <div className="relative">
-                      <input type={showEditToken ? 'text' : 'password'} value={editForm.accessToken}
+                      <input autoComplete="new-password" name="adflow-capi-token" data-1p-ignore data-lpignore="true" type={showEditToken ? 'text' : 'password'} value={editForm.accessToken}
                         onChange={(e) => setEditForm(p => ({ ...p, accessToken: e.target.value }))}
-                        placeholder="Boş bırakırsan mevcut token korunur"
+                        placeholder="Leave blank to keep the current token"
                         className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
                       <button type="button" onClick={() => setShowEditToken(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b]">
                         {showEditToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <p className="text-[10px] text-blue-500 mt-1">Değiştirmek istemiyorsan boş bırak — mevcut token korunur</p>
+                    <p className="text-[10px] text-blue-500 mt-1">Leave blank if you don&apos;t want to change it — the current token is kept</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#64748b] mb-1.5">Conversion Event</label>
@@ -625,15 +625,15 @@ export default function TrafficSourcesPage() {
                     <label className="block text-xs font-medium text-[#64748b] mb-1.5">
                       {editForm.platform === 'tiktok' ? 'Pixel Code' : 'Pixel ID'}
                     </label>
-                    <input type="text" value={editForm.pixelId} onChange={(e) => setEditForm(p => ({ ...p, pixelId: e.target.value }))}
+                    <input autoComplete="off" name="adflow-pixel-id" data-1p-ignore data-lpignore="true" type="text" value={editForm.pixelId} onChange={(e) => setEditForm(p => ({ ...p, pixelId: e.target.value }))}
                       className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#64748b] mb-1.5">Access Token</label>
                     <div className="relative">
-                      <input type={showEditToken ? 'text' : 'password'} value={editForm.accessToken}
+                      <input autoComplete="new-password" name="adflow-capi-token" data-1p-ignore data-lpignore="true" type={showEditToken ? 'text' : 'password'} value={editForm.accessToken}
                         onChange={(e) => setEditForm(p => ({ ...p, accessToken: e.target.value }))}
-                        placeholder="Boş bırakırsan mevcut token korunur"
+                        placeholder="Leave blank to keep the current token"
                         className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 pr-10 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
                       <button type="button" onClick={() => setShowEditToken(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b]">
                         {showEditToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -651,15 +651,15 @@ export default function TrafficSourcesPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Tags (virgülle)</label>
-                <input type="text" value={editForm.tags} onChange={(e) => setEditForm(p => ({ ...p, tags: e.target.value }))}
+                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Tags (comma separated)</label>
+                <input autoComplete="off" type="text" value={editForm.tags} onChange={(e) => setEditForm(p => ({ ...p, tags: e.target.value }))}
                   placeholder="meta, retargeting, brand"
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors" />
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setEditSource(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">İptal</button>
+                <button type="button" onClick={() => setEditSource(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
                 <button type="submit" disabled={editLoading} className="flex-1 flex items-center justify-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-                  {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Kaydet
+                  {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Save
                 </button>
               </div>
             </form>
@@ -676,14 +676,14 @@ export default function TrafficSourcesPage() {
               <div className="w-10 h-10 rounded-xl bg-[#ef4444]/10 flex items-center justify-center"><Trash2 className="w-5 h-5 text-[#ef4444]" /></div>
               <div>
                 <h3 className="text-sm font-bold text-[#0f172a]">Delete Traffic Source</h3>
-                <p className="text-xs text-[#64748b]">Bu işlem geri alınamaz</p>
+                <p className="text-xs text-[#64748b]">This action cannot be undone</p>
               </div>
             </div>
-            <p className="text-sm text-[#64748b] mb-5">Bu kaynağa bağlı kampanyalar kalır ama kaynak referansını kaybeder.</p>
+            <p className="text-sm text-[#64748b] mb-5">Campaigns linked to this source will remain, but will lose their source reference.</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">İptal</button>
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
               <button onClick={() => handleDelete(deleteId)} disabled={deleting} className="flex-1 flex items-center justify-center gap-2 bg-[#ef4444] hover:bg-[#dc2626] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Sil
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Delete
               </button>
             </div>
           </div>

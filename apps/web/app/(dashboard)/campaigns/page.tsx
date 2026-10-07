@@ -213,8 +213,10 @@ export default function CampaignsPage() {
         description: editForm.description || undefined,
         budget: editForm.budget ? parseFloat(editForm.budget) : undefined,
         cost: editForm.cost ? parseFloat(editForm.cost) : undefined,
-        trafficSourceId: editForm.trafficSourceId || undefined,
-        flowId: editForm.flowId || undefined,
+        // The modal is pre-filled with the current values, so an empty choice
+        // ("None") means remove it.
+        trafficSourceId: editForm.trafficSourceId || null,
+        flowId: editForm.flowId || null,
         status: editForm.status,
         externalCampaignId: editForm.externalCampaignId || null,
       });
@@ -499,13 +501,13 @@ export default function CampaignsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Flow <span className="text-[#94a3b8]">(opsiyonel — Lander/Offer routing)</span></label>
+                <label className="block text-xs font-medium text-[#64748b] mb-1.5">Flow <span className="text-[#94a3b8]">(optional — Lander/Offer routing)</span></label>
                 <select
                   value={form.flowId}
                   onChange={(e) => setForm((p) => ({ ...p, flowId: e.target.value }))}
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/50 transition-colors"
                 >
-                  <option value="">— Flow Yok —</option>
+                  <option value="">— No Flow —</option>
                   {flows.map((f) => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
@@ -698,9 +700,9 @@ export default function CampaignsPage() {
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] transition-colors resize-none" />
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setEditCampaign(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">İptal</button>
+                <button type="button" onClick={() => setEditCampaign(null)} className="flex-1 py-2.5 border border-[#e2e8f0] rounded-xl text-sm text-[#64748b] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
                 <button type="submit" disabled={editLoading} className="flex-1 flex items-center justify-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-                  {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Kaydet
+                  {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Save
                 </button>
               </div>
             </form>

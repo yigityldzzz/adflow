@@ -172,6 +172,10 @@ const STEPS = [
   },
 ];
 
+// Suffix for features that are announced but not built yet; rendered as a muted
+// "Coming soon" row instead of a regular check.
+const COMING_SOON = ' (coming soon)';
+
 const PLANS = [
   {
     name: 'Free',
@@ -220,11 +224,11 @@ const PLANS = [
     featuresIntro: 'Everything in Pro, plus:' as string | null,
     features: [
       'Multi-user access & permissions',
-      'Custom attribution windows',
-      'White-label reports',
+      'Custom attribution windows' + COMING_SOON,
+      'White-label reports' + COMING_SOON,
       'API access',
       'Unlimited data retention',
-      'Dedicated Slack support',
+      'Dedicated Slack support' + COMING_SOON,
     ],
     cta: 'Start 7-Day Free Trial',
     highlighted: false,
@@ -750,12 +754,20 @@ export default function LandingPage() {
                 )}
 
                 <ul className="space-y-3 flex-1 mb-7">
-                  {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-center gap-3 text-sm text-[#64748b]">
-                      <Check className={`w-4 h-4 flex-shrink-0 ${plan.comingSoon ? 'text-[#94a3b8]' : plan.highlighted ? 'text-[#6366f1]' : 'text-[#10b981]'}`} />
-                      {feat}
-                    </li>
-                  ))}
+                  {plan.features.map((feat) => {
+                    const soon = feat.endsWith(COMING_SOON);
+                    return (
+                      <li key={feat} className="flex items-center gap-3 text-sm text-[#64748b]">
+                        <Check className={`w-4 h-4 flex-shrink-0 ${plan.comingSoon || soon ? 'text-[#94a3b8]' : plan.highlighted ? 'text-[#6366f1]' : 'text-[#10b981]'}`} />
+                        <span className={soon ? 'text-[#94a3b8]' : undefined}>{soon ? feat.slice(0, -COMING_SOON.length) : feat}</span>
+                        {soon && (
+                          <span className="ml-auto flex-shrink-0 text-[10px] font-semibold text-[#94a3b8] bg-[#f1f5f9] border border-[#e2e8f0] px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                            Coming soon
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <Link

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   User,
   Key,
-  Bell,
   Shield,
   Loader2,
   Check,
@@ -41,7 +40,7 @@ interface BillingSubscription {
   live: boolean;
 }
 
-type TabId = 'profile' | 'billing' | 'security' | 'api' | 'notifications';
+type TabId = 'profile' | 'billing' | 'security' | 'api';
 
 interface BillingUsage {
   plan: string;
@@ -205,9 +204,9 @@ export default function SettingsPage() {
     if (saving) return;
     setSaving(true);
     try {
-      await api.patch('/api/auth/me', { name: form.name, email: form.email });
+      await api.patch('/api/auth/me', { name: form.name });
       toast({ type: 'success', title: 'Profile updated!' });
-      setUser((u) => u ? { ...u, ...form } : u);
+      setUser((u) => u ? { ...u, name: form.name } : u);
     } catch (err: unknown) {
       toast({ type: 'error', title: 'Update failed', description: err instanceof Error ? err.message : undefined });
     } finally {
@@ -269,7 +268,6 @@ export default function SettingsPage() {
     { id: 'billing', label: 'Plan & Billing', icon: <CreditCard className="w-4 h-4" /> },
     { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
     { id: 'api', label: 'API Access', icon: <Key className="w-4 h-4" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
   ] as const;
 
   if (loading) {
@@ -342,11 +340,15 @@ export default function SettingsPage() {
               <label className="block text-xs font-medium text-[#64748b] mb-1.5">Email Address</label>
               <input
                 type="email"
-                required
+                readOnly
                 value={form.email}
-                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#0f172a] focus:outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/50 transition-colors"
+                className="w-full bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm text-[#64748b] cursor-not-allowed focus:outline-none"
               />
+              <p className="text-[11px] text-[#94a3b8] mt-1.5">
+                Need to change your email? Write to{' '}
+                <a href="mailto:info@digitaladexpert.de?subject=Change%20my%20AdFlow%20email" className="text-[#6366f1] hover:underline">info@digitaladexpert.de</a>{' '}
+                from your current address.
+              </p>
             </div>
             <button
               type="submit"
@@ -488,7 +490,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {([
                   { id: 'PRO' as const, name: 'Pro', desc: 'Unlimited clicks & links, AI insights, conversion postbacks, bot detection, 1-year data retention.' },
-                  { id: 'TEAM' as const, name: 'Team', desc: 'Everything in Pro, plus multi-user access, white-label reports, API access and unlimited data retention.' },
+                  { id: 'TEAM' as const, name: 'Team', desc: 'Everything in Pro, plus multi-user team access and unlimited data retention.' },
                 ]).map((p) => (
                   <div key={p.id} className={`bg-[#ffffff] border rounded-2xl p-5 flex flex-col ${p.id === 'PRO' ? 'border-[#6366f1]/40' : 'border-[#e2e8f0]'}`}>
                     <p className="text-sm font-semibold text-[#0f172a]">{p.name}</p>
@@ -647,43 +649,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Notifications Tab */}
-      {activeTab === 'notifications' && (
-        <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-[#0f172a] mb-5">Notification Preferences</h3>
-          <div className="space-y-4">
-            {[
-              { label: 'Weekly performance report', desc: 'Get a summary of your campaign performance every Monday', enabled: true },
-              { label: 'Bot traffic alerts', desc: 'Notify when bot traffic exceeds 10% of total clicks', enabled: true },
-              { label: 'Conversion milestones', desc: 'Alert when campaigns hit conversion goals', enabled: false },
-              { label: 'Budget alerts', desc: 'Warn when campaigns are near budget limits', enabled: true },
-              { label: 'System updates', desc: 'Product updates, new features, and maintenance notices', enabled: false },
-            ].map((pref) => (
-              <div key={pref.label} className="flex items-start justify-between gap-4 p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
-                <div>
-                  <p className="text-sm font-medium text-[#0f172a]">{pref.label}</p>
-                  <p className="text-xs text-[#94a3b8] mt-0.5">{pref.desc}</p>
-                </div>
-                <button
-                  className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 mt-0.5 ${
-                    pref.enabled ? 'bg-[#6366f1]' : 'bg-[#e2e8f0]'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      pref.enabled ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button className="mt-5 flex items-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-            <Check className="w-4 h-4" />
-            Save Preferences
-          </button>
-        </div>
-      )}
     </div>
   );
 }
