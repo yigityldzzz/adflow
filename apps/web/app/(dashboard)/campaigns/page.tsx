@@ -401,7 +401,7 @@ export default function CampaignsPage() {
                   {campaign.cost && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[#94a3b8]">Ad Spend</span>
-                      <span className="text-xs font-semibold text-[#ef4444]">${campaign.cost.toLocaleString()}</span>
+                      <span className="text-xs font-semibold text-[#ef4444]">${campaign.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   )}
                 </div>
