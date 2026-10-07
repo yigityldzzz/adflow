@@ -4,6 +4,7 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { CampaignStatus } from '@prisma/client';
 import { limitFor } from '../config/planLimits';
+import { loadEffectivePlan } from '../services/planAccess';
 import { getTeamUserIds } from '../services/team';
 
 const router = Router();
@@ -97,7 +98,7 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   const userId = req.user!.id;
-  const limits = limitFor(req.user!.plan);
+  const limits = limitFor(await loadEffectivePlan(userId));
   if (limits.maxCampaigns !== null) {
     const teamIds = await getTeamUserIds(userId);
     const campaignCount = await prisma.campaign.count({ where: { userId: { in: teamIds } } });

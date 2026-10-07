@@ -9,6 +9,8 @@ import { Plan, Role } from '@prisma/client';
 import { sendMail } from '../services/mailer';
 import { welcomeEmail, passwordChangedEmail } from '../services/emailTemplates';
 import { hashResetToken, issuePasswordReset } from '../services/passwordReset';
+import { getEffectivePlan } from '../services/planAccess';
+import { expireTrial } from '../services/trialLifecycle';
 
 const router = Router();
 
@@ -45,12 +47,6 @@ function refreshTokenExpiresAt(): Date {
   return d;
 }
 
-function getEffectivePlan(user: { plan: Plan; trialPlan?: Plan | null; trialEndsAt?: Date | null }): Plan {
-  if (user.trialPlan && user.trialEndsAt && user.trialEndsAt > new Date()) {
-    return user.trialPlan;
-  }
-  return user.plan;
-}
 
 // POST /api/auth/register
 const registerSchema = z.object({
@@ -263,12 +259,9 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
     await prisma.user.update({ where: { id: user.id }, data: { lastActiveAt: new Date() } });
   }
 
-  // Auto-expire trial
+  // Auto-expire trial (also sends the one-time "trial ended" email)
   if (user.trialPlan && user.trialEndsAt && user.trialEndsAt <= new Date()) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { trialPlan: null, trialEndsAt: null },
-    });
+    await expireTrial(user.id);
     user.trialPlan = null;
     user.trialEndsAt = null;
   }

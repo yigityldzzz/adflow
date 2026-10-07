@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">Privacy Policy</h1>
-        <p className="text-sm text-[#94a3b8] mb-12">Last updated: August 12, 2026</p>
+        <p className="text-sm text-[#94a3b8] mb-12">Last updated: October 7, 2026</p>
 
         <div className="prose-custom space-y-10 text-[#334155] leading-relaxed">
           <section>
@@ -69,6 +69,9 @@ export default function PrivacyPolicyPage() {
               <li><strong>Click data (processed on your behalf):</strong> IP address, approximate geolocation derived from IP, device/browser user agent, referrer URL, UTM parameters, and ad-platform click identifiers (e.g. fbclid, gclid, ttclid) present in the URL.</li>
               <li><strong>Conversion data:</strong> events you or your ad platform send back to us via postback URL, pixel, or the Meta Conversions API integration.</li>
               <li><strong>Technical/log data:</strong> request logs used for security, abuse prevention, and bot filtering.</li>
+              <li><strong>Account activity:</strong> the date and time of your last sign-in and last dashboard visit, used for support, security and to send trial and account emails at the right time.</li>
+              <li><strong>Service emails:</strong> we email your account address about your account (welcome, trial reminders, password resets and security notices). These are part of the service, not marketing.</li>
+              <li><strong>Billing data:</strong> payments are handled by Lemon Squeezy (see Section 6). We see your subscription status and plan, and your card&apos;s brand and last four digits — never your full card details.</li>
             </ul>
           </section>
 
@@ -85,8 +88,8 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-[#0f172a] mb-3">5. Data retention</h2>
             <p>
-              Click and conversion data is retained according to your plan&apos;s stated retention window (currently
-              30 days on the Free plan; longer retention is planned for paid tiers). Account data is retained for as
+              Click and conversion data is retained according to your plan&apos;s stated retention window (Free:
+              30 days, Pro: 1 year, Team: unlimited). Account data is retained for as
               long as your account is active, and deleted upon account deletion request, subject to any legal
               retention obligations.
             </p>
@@ -95,10 +98,17 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-[#0f172a] mb-3">6. Where your data is processed</h2>
             <p>
-              AdFlow is self-hosted on infrastructure we operate and control directly — we do not sell or share your
-              data with data brokers or advertising networks beyond the integrations you explicitly configure (for
-              example, sending conversion events to Meta via the Conversions API when you enable that feature).
+              AdFlow runs on a server we operate and control ourselves — we do not sell or share your data with data
+              brokers or advertising networks beyond the integrations you explicitly configure (for example, sending
+              conversion events to Meta via the Conversions API when you enable that feature).
             </p>
+            <p className="mt-2">We rely on a small number of service providers to run the service:</p>
+            <ul className="list-disc pl-5 space-y-1.5 mt-2">
+              <li><strong>Hostinger</strong> — provides the virtual server AdFlow runs on.</li>
+              <li><strong>Cloudflare</strong> — network and security layer in front of AdFlow; it processes connection data such as IP addresses to deliver and protect the service.</li>
+              <li><strong>Google Workspace</strong> — sends our service emails and hosts the support mailbox you write to.</li>
+              <li><strong>Lemon Squeezy</strong> — our reseller and Merchant of Record for paid plans. It processes your payment and billing details as an independent controller under its own privacy policy.</li>
+            </ul>
           </section>
 
           <section>
@@ -108,6 +118,11 @@ export default function PrivacyPolicyPage() {
               hashed credentials (bcrypt), access-controlled infrastructure, firewalling, and intrusion
               prevention on our servers. No system is 100% secure, and we continuously work to improve our
               security posture.
+            </p>
+            <p className="mt-2">
+              <strong>Support access:</strong> to answer a support request you send us, or to investigate a technical
+              or security problem, authorised Digital Ad Expert staff can view your dashboard as you see it. We do this
+              only for those purposes, and each access is recorded in our server logs.
             </p>
           </section>
 
@@ -131,7 +146,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-[#0f172a] mb-3">9. Cookies</h2>
             <p>
-              The AdFlow dashboard uses a single essential authentication cookie/token to keep you signed in. It
+              The AdFlow dashboard keeps you signed in with essential sign-in tokens stored in your browser&apos;s local storage. It
               does not set third-party advertising or tracking cookies on this website. Tracking links you create
               in AdFlow may set identifiers on your own destination pages as part of the attribution feature you
               configured — that data belongs to you as controller, as described in Section 2.

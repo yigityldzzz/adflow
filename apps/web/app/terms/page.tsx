@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">Terms of Service</h1>
-        <p className="text-sm text-[#94a3b8] mb-12">Last updated: October 5, 2026</p>
+        <p className="text-sm text-[#94a3b8] mb-12">Last updated: October 7, 2026</p>
 
         <div className="prose-custom space-y-10 text-[#334155] leading-relaxed">
           <section>
@@ -55,6 +55,10 @@ export default function TermsOfServicePage() {
               <li>You must provide accurate information when registering and keep your credentials confidential.</li>
               <li>You are responsible for all activity that happens under your account and API key.</li>
               <li>You must notify us promptly of any unauthorized use of your account.</li>
+              <li>We send service emails to the address on your account (for example welcome, trial and billing
+                reminders, password resets and security notices). They are part of the service, not marketing.</li>
+              <li>To answer a support request or fix a technical or security problem, our team may view your dashboard
+                as you see it, only for that purpose (see our Privacy Policy).</li>
             </ul>
           </section>
 
@@ -64,8 +68,9 @@ export default function TermsOfServicePage() {
               AdFlow&rsquo;s Free plan is available with the limits shown on our pricing page. Every new account
               starts with a 7-day trial of Pro features, no credit card required; if you do not subscribe before the
               trial ends, your account automatically returns to the Free plan. Paid plans are billed monthly:
-              Pro &euro;49/month and Team &euro;149/month. Depending on your location, VAT or sales tax may be added
-              at checkout.
+              Pro &euro;49/month and Team &euro;149/month. A subscription started at checkout includes a 7-day free
+              trial: you are charged when it ends unless you cancel before. Depending on your location, VAT or sales
+              tax may be added at checkout.
             </p>
             <p className="mt-2">
               Our order process is conducted by our online reseller Lemon Squeezy, who is the Merchant of Record for

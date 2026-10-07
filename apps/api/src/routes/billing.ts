@@ -4,6 +4,9 @@ import { Plan } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { createCheckoutUrl, getSubscription, planForVariant, verifyWebhookSignature } from '../services/lemonsqueezy';
+import { limitFor } from '../config/planLimits';
+import { loadEffectivePlan, startOfCurrentMonth } from '../services/planAccess';
+import { getTeamUserIds } from '../services/team';
 
 const router = Router();
 const webhookRouter = Router();
@@ -155,6 +158,35 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
     console.error('[billing/subscription]', err);
     res.json({ subscription: stored });
   }
+});
+
+// ── GET /api/billing/usage — authenticated ──────────────────────────────────
+// Current usage against the plan limits, counted the same way the limits are
+// enforced (team-wide; clicks since the start of the month as in /r/:slug).
+router.get('/usage', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+  const plan = await loadEffectivePlan(userId);
+  const limits = limitFor(plan);
+  const teamIds = await getTeamUserIds(userId);
+  const periodStart = startOfCurrentMonth();
+
+  const [campaigns, links, clicksThisMonth] = await Promise.all([
+    prisma.campaign.count({ where: { userId: { in: teamIds } } }),
+    prisma.trackingLink.count({ where: { userId: { in: teamIds } } }),
+    prisma.click.count({ where: { userId: { in: teamIds }, timestamp: { gte: periodStart } } }),
+  ]);
+
+  res.json({
+    plan,
+    periodStart,
+    usage: { campaigns, links, clicksThisMonth },
+    limits: {
+      maxCampaigns: limits.maxCampaigns,
+      maxLinks: limits.maxLinks,
+      maxClicksPerMonth: limits.maxClicksPerMonth,
+      retentionDays: limits.retentionDays,
+    },
+  });
 });
 
 // ── POST /api/webhooks/lemonsqueezy — public, HMAC-verified ─────────────────

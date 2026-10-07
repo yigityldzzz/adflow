@@ -43,6 +43,33 @@ interface BillingSubscription {
 
 type TabId = 'profile' | 'billing' | 'security' | 'api' | 'notifications';
 
+interface BillingUsage {
+  plan: string;
+  usage: { campaigns: number; links: number; clicksThisMonth: number };
+  limits: { maxCampaigns: number | null; maxLinks: number | null; maxClicksPerMonth: number | null; retentionDays: number | null };
+}
+
+function UsageRow({ label, used, max }: { label: string; used: number; max: number | null }) {
+  const pct = max ? Math.min(100, Math.round((used / max) * 100)) : 0;
+  const color = !max ? '#6366f1' : pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#6366f1';
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium text-[#64748b]">{label}</p>
+        <p className="text-xs text-[#0f172a]">
+          <span className="font-semibold">{used.toLocaleString('en-US')}</span>
+          <span className="text-[#94a3b8]"> / {max === null ? 'Unlimited' : max.toLocaleString('en-US')}</span>
+        </p>
+      </div>
+      {max !== null && (
+        <div className="mt-1.5 h-1.5 rounded-full bg-[#e2e8f0] overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PLAN_PRICES: Record<'PRO' | 'TEAM', string> = { PRO: '€49', TEAM: '€149' };
 
 // Mirrors OPEN_STATUSES in apps/api/src/routes/billing.ts: while one of these
@@ -86,6 +113,7 @@ export default function SettingsPage() {
   const [billingLoaded, setBillingLoaded] = useState(false);
   const [justUpgraded, setJustUpgraded] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<'PRO' | 'TEAM' | null>(null);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
 
   // Lemon Squeezy sends the buyer back to /settings?tab=billing&upgraded=1.
   useEffect(() => {
@@ -117,6 +145,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab !== 'billing' || billingLoaded) return;
     let cancelled = false;
+    api.get<BillingUsage>('/api/billing/usage').then((u) => { if (!cancelled) setUsage(u); }).catch(() => {});
     (async () => {
       let sub = await loadBilling();
       // Right after checkout the webhook can land a few seconds after the
@@ -435,6 +464,25 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+
+            {usage && (
+              <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6">
+                <div className="flex items-baseline justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-[#0f172a]">Usage</h3>
+                  <p className="text-[11px] text-[#94a3b8]">Clicks reset on the 1st of each month</p>
+                </div>
+                <div className="space-y-4">
+                  <UsageRow label="Recorded clicks this month" used={usage.usage.clicksThisMonth} max={usage.limits.maxClicksPerMonth} />
+                  <UsageRow label="Campaigns" used={usage.usage.campaigns} max={usage.limits.maxCampaigns} />
+                  <UsageRow label="Tracking links" used={usage.usage.links} max={usage.limits.maxLinks} />
+                </div>
+                <p className="text-[11px] text-[#94a3b8] mt-4">
+                  Data retention: {usage.limits.retentionDays === null ? 'unlimited' : usage.limits.retentionDays >= 365 ? '1 year' : `${usage.limits.retentionDays} days`}.
+                  {usage.limits.maxClicksPerMonth !== null && ' Over the monthly limit, your links keep redirecting but new clicks are not recorded.'}
+                </p>
+              </div>
+            )}
 
             {!hasOpenSub && billingLoaded && (
               <div className="grid gap-4 sm:grid-cols-2">

@@ -16,8 +16,30 @@ interface AdminUser {
   createdAt: string;
   clicks: number;
   conversions: number;
+  lastActiveAt?: string | null;
+  lsStatus?: string | null;
   _count: { links: number; campaigns: number };
 }
+
+function lastActiveLabel(iso?: string | null): string {
+  if (!iso) return '—';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return mins < 1 ? 'just now' : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+// Lemon Squeezy subscription status → short label + colour for the list.
+const BILLING_BADGES: Record<string, { label: string; className: string }> = {
+  on_trial: { label: 'Paid trial', className: 'text-[#6366f1] bg-[#6366f1]/10 border-[#6366f1]/20' },
+  active: { label: 'Paying', className: 'text-[#10b981] bg-[#10b981]/10 border-[#10b981]/20' },
+  cancelled: { label: 'Cancelled', className: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20' },
+  past_due: { label: 'Past due', className: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' },
+  unpaid: { label: 'Unpaid', className: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' },
+  paused: { label: 'Paused', className: 'text-[#64748b] bg-[#e2e8f0] border-[#cbd5e1]' },
+  expired: { label: 'Expired', className: 'text-[#64748b] bg-[#e2e8f0] border-[#cbd5e1]' },
+};
 
 const PLAN_COLORS: Record<string, string> = {
   FREE: 'text-[#64748b] bg-[#e2e8f0] border-[#cbd5e1]',
@@ -125,7 +147,7 @@ export default function AdminUsersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e2e8f0]">
-                {['User', 'Plan', 'Clicks', 'Links', 'Campaigns', 'Joined', 'Status', ''].map((h) => (
+                {['User', 'Plan', 'Billing', 'Clicks', 'Links', 'Campaigns', 'Joined', 'Last active', 'Status', ''].map((h) => (
                   <th key={h} className="text-left px-5 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -134,14 +156,14 @@ export default function AdminUsersPage() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-[#e2e8f0]/50">
-                    {[...Array(8)].map((__, j) => (
+                    {[...Array(10)].map((__, j) => (
                       <td key={j} className="px-5 py-4"><div className="h-4 skeleton rounded w-20" /></td>
                     ))}
                   </tr>
                 ))
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center">
+                  <td colSpan={10} className="px-5 py-16 text-center">
                     <Users className="w-8 h-8 text-[#e2e8f0] mx-auto mb-2" />
                     <p className="text-sm text-[#94a3b8]">No users found</p>
                   </td>
@@ -165,6 +187,15 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3">
+                    {u.lsStatus && BILLING_BADGES[u.lsStatus] ? (
+                      <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-md border whitespace-nowrap ${BILLING_BADGES[u.lsStatus].className}`}>
+                        {BILLING_BADGES[u.lsStatus].label}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-[#94a3b8]">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
                     <div className="flex items-center gap-1 text-xs text-[#64748b]">
                       <MousePointerClick className="w-3 h-3 text-[#94a3b8]" />
                       {u.clicks.toLocaleString()}
@@ -173,6 +204,7 @@ export default function AdminUsersPage() {
                   <td className="px-5 py-3 text-xs text-[#64748b]">{u._count.links}</td>
                   <td className="px-5 py-3 text-xs text-[#64748b]">{u._count.campaigns}</td>
                   <td className="px-5 py-3 text-xs text-[#94a3b8] whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-xs text-[#64748b] whitespace-nowrap" title={u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : 'Not tracked yet'}>{lastActiveLabel(u.lastActiveAt)}</td>
                   <td className="px-5 py-3">
                     {u.suspended ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/20 px-2 py-0.5 rounded-md">

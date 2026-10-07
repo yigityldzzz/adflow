@@ -185,3 +185,79 @@ export function passwordChangedEmail(user: { name?: string | null; email: string
     text,
   };
 }
+
+// What a trial user drops back to — keep in sync with PLAN_LIMITS.FREE.
+const FREE_PLAN_LIMITS = ['1 campaign', '3 tracking links', '10,000 recorded clicks per month', '30-day data retention'];
+
+function bulletList(items: string[]): string {
+  return `<ul style="margin:0 0 14px;padding-left:20px">${items.map((i) => `<li style="margin:0 0 4px">${esc(i)}</li>`).join('')}</ul>`;
+}
+
+export function trialEndingEmail(user: { name?: string | null; trialEndsAt: Date }): MailContent {
+  const billing = `${webBaseUrl()}/settings?tab=billing`;
+  const ends = formatDate(user.trialEndsAt);
+  const daysLeft = Math.max(1, Math.ceil((user.trialEndsAt.getTime() - Date.now()) / 86400000));
+  const when = daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`;
+
+  const bodyHtml = `
+    <h1 style="${H1}">Your Pro trial ends ${esc(when)}</h1>
+    <p style="${P}">Hi ${esc(firstName(user.name))}, your free AdFlow Pro trial ends on <strong style="color:#0f172a">${esc(ends)}</strong>. After that your account moves to the Free plan:</p>
+    ${bulletList(FREE_PLAN_LIMITS)}
+    <p style="${P}">Your tracking links keep redirecting either way — nothing breaks in your running ads. To keep unlimited campaigns, links and clicks, subscribe to Pro for <strong style="color:#0f172a">€49/month</strong>.</p>
+    ${button(billing, 'Keep Pro')}
+    <p style="${SMALL}">Checkout includes a 7-day free trial, so you're only charged after it ends — and you can cancel anytime before that.<br>
+    Questions? Just reply to this email.</p>`;
+
+  const text = [
+    `Your AdFlow Pro trial ends ${when}`,
+    '',
+    `Hi ${firstName(user.name)}, your free AdFlow Pro trial ends on ${ends}. After that your account moves to the Free plan:`,
+    ...FREE_PLAN_LIMITS.map((l) => `- ${l}`),
+    '',
+    'Your tracking links keep redirecting either way. To keep unlimited campaigns, links and clicks, subscribe to Pro for €49/month:',
+    billing,
+    '',
+    "Checkout includes a 7-day free trial, so you're only charged after it ends — cancel anytime before that.",
+  ].join('\n');
+
+  return {
+    subject: `Your AdFlow Pro trial ends ${when}`,
+    html: layout({
+      preheader: `Your trial ends on ${ends}. Keep Pro for €49/month — cancel anytime.`,
+      bodyHtml,
+      footerNote: 'You received this email because your AdFlow Pro trial is ending.',
+    }),
+    text,
+  };
+}
+
+export function trialEndedEmail(user: { name?: string | null }): MailContent {
+  const billing = `${webBaseUrl()}/settings?tab=billing`;
+  const bodyHtml = `
+    <h1 style="${H1}">Your Pro trial has ended</h1>
+    <p style="${P}">Hi ${esc(firstName(user.name))}, thanks for trying AdFlow Pro. Your account is now on the Free plan:</p>
+    ${bulletList(FREE_PLAN_LIMITS)}
+    <p style="${P}">Your tracking links still redirect and your data is kept within the Free plan's limits. Upgrade anytime to get unlimited campaigns, links and clicks back.</p>
+    ${button(billing, 'Upgrade to Pro — €49/month')}
+    <p style="${SMALL}">Not the right fit yet? We'd love to know why — just reply to this email.</p>`;
+
+  const text = [
+    'Your AdFlow Pro trial has ended',
+    '',
+    `Hi ${firstName(user.name)}, thanks for trying AdFlow Pro. Your account is now on the Free plan:`,
+    ...FREE_PLAN_LIMITS.map((l) => `- ${l}`),
+    '',
+    `Your tracking links still redirect. Upgrade anytime: ${billing}`,
+    "Not the right fit yet? Reply to this email and tell us why.",
+  ].join('\n');
+
+  return {
+    subject: 'Your AdFlow Pro trial has ended',
+    html: layout({
+      preheader: "You're on the Free plan now — upgrade anytime to get Pro back.",
+      bodyHtml,
+      footerNote: 'You received this email because your AdFlow Pro trial ended.',
+    }),
+    text,
+  };
+}

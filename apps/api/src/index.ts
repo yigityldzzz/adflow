@@ -27,6 +27,7 @@ import billingRouter, { webhookRouter } from './routes/billing';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
 import { syncAllMetaAdAccounts } from './services/adAccountScheduler';
+import { runTrialLifecycle } from './services/trialLifecycle';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '6000', 10);
@@ -191,6 +192,14 @@ setTimeout(() => {
 setInterval(() => {
   enforceDataRetention().catch((e) => console.error('[Retention]', e));
 }, 24 * 60 * 60 * 1000);
+
+// Trial reminder / trial-ended emails, hourly (first pass a few minutes after boot).
+setTimeout(() => {
+  runTrialLifecycle().catch((e) => console.error('[Trial]', e));
+}, 4 * 60 * 1000);
+setInterval(() => {
+  runTrialLifecycle().catch((e) => console.error('[Trial]', e));
+}, 60 * 60 * 1000);
 
 // Sync connected Meta ad account spend into linked campaigns every 6 hours.
 // No-op if no accounts are connected yet.

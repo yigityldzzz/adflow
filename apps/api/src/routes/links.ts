@@ -5,6 +5,7 @@ function nanoid(size = 21): string { return randomBytes(Math.ceil(size * 3 / 4))
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { limitFor } from '../config/planLimits';
+import { loadEffectivePlan } from '../services/planAccess';
 import { getTeamUserIds } from '../services/team';
 
 const router = Router();
@@ -68,7 +69,7 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.id;
 
   const teamIds = await getTeamUserIds(userId);
-  const limits = limitFor(req.user!.plan);
+  const limits = limitFor(await loadEffectivePlan(userId));
   if (limits.maxLinks !== null) {
     const linkCount = await prisma.trackingLink.count({ where: { userId: { in: teamIds } } });
     if (linkCount >= limits.maxLinks) {

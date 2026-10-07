@@ -5,6 +5,7 @@ import { detectBot, isAdReviewer } from '../services/botDetection';
 import { lookupGeo } from '../services/geoip';
 import { getTeamUserIds } from '../services/team';
 import { limitFor, PlanTier } from '../config/planLimits';
+import { getEffectivePlan, startOfCurrentMonth } from '../services/planAccess';
 import { randomBytes } from 'crypto';
 function nanoid(size = 21) { return randomBytes(Math.ceil(size * 3/4)).toString('base64url').slice(0, size); }
 
@@ -168,7 +169,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
     where: { slug },
     include: {
       campaign: { select: { id: true, flowId: true, status: true } },
-      user: { select: { plan: true } },
+      user: { select: { plan: true, trialPlan: true, trialEndsAt: true } },
     },
   });
 
@@ -178,15 +179,13 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   // way (breaking real ad traffic over a soft plan limit would hurt the
   // customer's own funnel) — once over the cap we just stop writing new
   // clicks to the DB, so reporting caps out and nudges toward upgrading.
-  const planLimits = limitFor((link.user?.plan as PlanTier) ?? 'FREE');
+  // Effective plan, so a user on the no-card Pro trial isn't capped like Free.
+  const planLimits = limitFor((link.user ? getEffectivePlan(link.user) : 'FREE') as PlanTier);
   let shouldRecord = true;
   if (planLimits.maxClicksPerMonth !== null) {
     const teamIds = await getTeamUserIds(link.userId);
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
     const clicksThisMonth = await prisma.click.count({
-      where: { userId: { in: teamIds }, timestamp: { gte: startOfMonth } },
+      where: { userId: { in: teamIds }, timestamp: { gte: startOfCurrentMonth() } },
     });
     shouldRecord = clicksThisMonth < planLimits.maxClicksPerMonth;
   }

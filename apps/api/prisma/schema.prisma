@@ -58,6 +58,8 @@ model User {
   lsStatus         String?
   lastLoginAt      DateTime?
   lastActiveAt     DateTime?
+  trialReminderSentAt   DateTime?
+  trialEndedEmailSentAt DateTime?
   createdAt     DateTime       @default(now())
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]

@@ -247,7 +247,8 @@ router.post('/users/:id/trial', async (req: AuthRequest, res: Response): Promise
 
   const updated = await prisma.user.update({
     where: { id },
-    data: { trialPlan: parse.data.plan as never, trialEndsAt },
+    // A new trial gets its own reminder / ended emails.
+    data: { trialPlan: parse.data.plan as never, trialEndsAt, trialReminderSentAt: null, trialEndedEmailSentAt: null },
     select: { id: true, email: true, plan: true, trialPlan: true, trialEndsAt: true },
   });
 
