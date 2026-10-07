@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { UAParser } from 'ua-parser-js';
 import { prisma } from '../config/database';
-import { detectBot, isAdReviewer } from '../services/botDetection';
+import { detectBot, isForwardedBot } from '../services/botDetection';
+import { flagAutomatedNeighbours } from '../services/clickQuality';
 import { lookupGeo } from '../services/geoip';
 import { getTeamUserIds } from '../services/team';
 import { limitFor, PlanTier } from '../config/planLimits';
@@ -241,9 +242,10 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
   // 'Suspicious' clicks (weaker signal, e.g. missing UA) are still forwarded —
   // blocking on a weak signal risks turning away real visitors.
   if (isBot) {
-    // Ad-platform reviewers get the plain destination (no visitor id, no cookie)
-    // so ads aren't rejected; every other bot keeps getting an empty response.
-    if (isAdReviewer(userAgentString, ip)) {
+    // Ad-platform reviewers and self-identified crawlers get the plain
+    // destination (no visitor id, no cookie) so ads aren't rejected; every
+    // other bot keeps getting an empty response.
+    if (isForwardedBot(userAgentString, ip)) {
       res.redirect(302, buildDestinationUrl(link.destinationUrl, q));
     } else {
       res.status(200).type('text/plain').send('');
@@ -269,7 +271,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
           userAgent: userAgentString || null,
           isBot: true, isSuspicious, isUnique: false,
         },
-      }).catch(() => {});
+      }).then((c) => flagAutomatedNeighbours(c.linkId, c.ip, c.timestamp)).catch(() => {});
     }
     return;
   }
@@ -302,7 +304,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
           userAgent: userAgentString || null,
           isBot: false, isSuspicious, isUnique: false,
         },
-      }).catch(() => {});
+      }).then((c) => flagAutomatedNeighbours(c.linkId, c.ip, c.timestamp)).catch(() => {});
     }
     return;
   }
@@ -367,7 +369,7 @@ router.get('/:slug', async (req: Request, res: Response): Promise<void> => {
       userAgent: userAgentString || null,
       isBot, isSuspicious, isUnique,
     },
-  }).catch(() => {});
+  }).then((c) => flagAutomatedNeighbours(c.linkId, c.ip, c.timestamp)).catch(() => {});
 });
 
 export default router;

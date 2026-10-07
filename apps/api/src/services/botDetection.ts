@@ -16,6 +16,26 @@ const GOOGLE_IP_PREFIXES = [
   '2001:4860:',
 ];
 
+// Self-identified crawlers (AI and SEO bots, link checkers) and raw HTTP
+// clients that real browsers never send. They count as bots in reports but are
+// still forwarded to the page (see isForwardedBot): some of them check links
+// on behalf of ad platforms, and showing a checker an empty page can get an ad
+// rejected.
+const CRAWLER_PATTERNS = [
+  /dalvik\//i,
+  /okhttp/i,
+  /claudebot|claude-web|anthropic-ai/i,
+  /gptbot|chatgpt-user|oai-searchbot/i,
+  /perplexitybot|perplexity-user/i,
+  /amazonbot/i,
+  /bytespider/i,
+  /ccbot/i,
+  /petalbot/i,
+  /barkrowler/i,
+  // "compatible; SomethingBot/1.0" — the form crawlers use to identify themselves
+  /compatible;[^)]*\b[\w.-]*(bot|crawler|spider)\b/i,
+];
+
 export function detectBot(
   userAgent: string,
   ip: string
@@ -63,7 +83,7 @@ export function detectBot(
     /telegrambot/i,
   ];
 
-  const uaIsBot = botPatterns.some((p) => p.test(userAgent));
+  const uaIsBot = botPatterns.some((p) => p.test(userAgent)) || CRAWLER_PATTERNS.some((p) => p.test(userAgent));
   const ipIsBot = [...BOT_IP_PREFIXES, ...GOOGLE_IP_PREFIXES].some((prefix) => ip.startsWith(prefix));
   const isBot = uaIsBot || ipIsBot;
 
@@ -100,4 +120,10 @@ export function isAdReviewer(userAgent: string, ip: string): boolean {
   if (AD_REVIEWER_PATTERNS.some((p) => p.test(userAgent))) return true;
   // Meta and Google review ads from their own data centers, sometimes with a normal browser UA
   return [...BOT_IP_PREFIXES, ...GOOGLE_IP_PREFIXES].some((prefix) => ip.startsWith(prefix));
+}
+
+// Bots that are still sent on to the destination (plain URL, no visitor id):
+// ad-platform reviewers and the self-identified crawlers above.
+export function isForwardedBot(userAgent: string, ip: string): boolean {
+  return isAdReviewer(userAgent, ip) || CRAWLER_PATTERNS.some((p) => p.test(userAgent));
 }
