@@ -73,20 +73,62 @@ app.use(cookieParser());
 app.set('trust proxy', 1);
 
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
+// Visitors arrive through the Cloudflare tunnel, which connects to nginx from
+// localhost — so req.ip is 127.0.0.1 for everyone and every limit would be
+// shared by all users. For those requests key on CF-Connecting-IP (set by
+// Cloudflare, not spoofable through the tunnel); anything reaching nginx
+// directly keeps its own req.ip, so the header can't be used to dodge limits.
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+function clientKey(req: express.Request): string {
+  const ip = req.ip ?? '';
+  if (LOOPBACK.has(ip)) {
+    const cf = req.headers['cf-connecting-ip'];
+    if (typeof cf === 'string' && cf) return cf;
+  }
+  return ip;
+}
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
+  keyGenerator: clientKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
 });
 
+// Account creation: every attempt counts (spam sign-ups).
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  keyGenerator: clientKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many auth attempts, please try again later.' },
+});
+
+// Password checks (sign-in, password change): only *failed* attempts count,
+// so brute force is still capped but a successful sign-in never uses it up.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: clientKey,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts, please try again later.' },
+});
+
+// Session endpoints (/me, /refresh, /logout, /api-key) run on every dashboard
+// page load. They used to share the 10-per-15-min auth limit, which locked
+// people out of signing in after browsing a few pages.
+const sessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  keyGenerator: clientKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -101,8 +143,11 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, version: '1.0.0' });
 });
 
-// Auth (stricter rate limit)
-app.use('/api/auth', authLimiter, authRouter);
+// Auth — stricter limits only on the credential endpoints
+app.post('/api/auth/login', loginLimiter);
+app.patch('/api/auth/me', loginLimiter);
+app.post('/api/auth/register', authLimiter);
+app.use('/api/auth', sessionLimiter, authRouter);
 
 // Protected API routes (general rate limit)
 app.use('/api/campaigns', generalLimiter, campaignsRouter);
