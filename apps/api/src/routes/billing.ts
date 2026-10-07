@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Plan } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { createCheckoutUrl, planForVariant, verifyWebhookSignature } from '../services/lemonsqueezy';
+import { createCheckoutUrl, getSubscription, planForVariant, verifyWebhookSignature } from '../services/lemonsqueezy';
 
 const router = Router();
 const webhookRouter = Router();
@@ -12,6 +12,48 @@ const webhookRouter = Router();
 // checkout URL for the requested plan. The frontend redirects the browser
 // there; Lemon Squeezy handles card entry + the 7-day-trial-then-charge flow.
 const checkoutSchema = z.object({ plan: z.enum(['PRO', 'TEAM']) });
+
+// `cancelled` is NOT a downgrade: Lemon Squeezy keeps a cancelled
+// subscription running until the end of the period the customer already paid
+// for (or the end of the trial), then sends `subscription_expired`. Only the
+// statuses below mean access has actually ended.
+const DOWNGRADE_STATUSES = new Set(['expired', 'paused', 'unpaid']);
+
+// Statuses where the user still has a subscription to manage (or resume) in
+// the Lemon Squeezy customer portal — starting a second checkout would bill
+// them twice.
+const OPEN_STATUSES = new Set(['on_trial', 'active', 'past_due', 'cancelled', 'paused', 'unpaid']);
+
+// Applies a subscription's state to our user row. Shared by the webhook and
+// GET /subscription (which re-syncs in case a webhook was missed).
+async function applySubscriptionState(
+  userId: string,
+  sub: { id: string; customerId?: string; variantId: string; status: string },
+): Promise<void> {
+  if (DOWNGRADE_STATUSES.has(sub.status)) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { plan: Plan.FREE, lsStatus: sub.status },
+    });
+    return;
+  }
+
+  const mappedPlan = planForVariant(sub.variantId);
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(mappedPlan ? { plan: mappedPlan as Plan } : {}),
+      // A real Lemon Squeezy subscription supersedes our own no-card
+      // registration trial — clear it so getEffectivePlan() reads `plan`.
+      trialPlan: null,
+      trialEndsAt: null,
+      ...(sub.customerId ? { lsCustomerId: sub.customerId } : {}),
+      lsSubscriptionId: sub.id,
+      lsVariantId: sub.variantId,
+      lsStatus: sub.status,
+    },
+  });
+}
 
 router.post('/checkout', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = checkoutSchema.safeParse(req.body);
@@ -36,6 +78,11 @@ router.post('/checkout', authenticate, async (req: AuthRequest, res: Response): 
     return;
   }
 
+  if (user.lsSubscriptionId && user.lsStatus && OPEN_STATUSES.has(user.lsStatus)) {
+    res.status(409).json({ error: 'You already have a subscription. Manage it under Settings → Plan & Billing.' });
+    return;
+  }
+
   try {
     const url = await createCheckoutUrl({
       variantId,
@@ -47,6 +94,66 @@ router.post('/checkout', authenticate, async (req: AuthRequest, res: Response): 
   } catch (err) {
     console.error('[billing/checkout]', err);
     res.status(502).json({ error: 'Could not create checkout session' });
+  }
+});
+
+// ── GET /api/billing/subscription — authenticated ─────────────────────────────
+// Current subscription for the Settings → Plan & Billing tab, read live from
+// Lemon Squeezy (renewal date, card, signed customer-portal link). Falls back
+// to the stored status if Lemon Squeezy can't be reached.
+router.get('/subscription', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  if (!user.lsSubscriptionId) {
+    res.json({ subscription: null });
+    return;
+  }
+
+  const stored = {
+    status: user.lsStatus ?? 'unknown',
+    plan: user.lsVariantId ? planForVariant(user.lsVariantId) : null,
+    renewsAt: null as string | null,
+    endsAt: null as string | null,
+    trialEndsAt: null as string | null,
+    cardBrand: null as string | null,
+    cardLastFour: null as string | null,
+    customerPortalUrl: null as string | null,
+    updatePaymentMethodUrl: null as string | null,
+    live: false,
+  };
+
+  try {
+    const sub = await getSubscription(user.lsSubscriptionId);
+    if (!sub) {
+      res.json({ subscription: stored });
+      return;
+    }
+
+    if (sub.status !== user.lsStatus || sub.variantId !== user.lsVariantId) {
+      await applySubscriptionState(user.id, { id: user.lsSubscriptionId, variantId: sub.variantId, status: sub.status });
+    }
+
+    res.json({
+      subscription: {
+        status: sub.status,
+        plan: planForVariant(sub.variantId),
+        renewsAt: sub.renewsAt,
+        endsAt: sub.endsAt,
+        trialEndsAt: sub.trialEndsAt,
+        cardBrand: sub.cardBrand,
+        cardLastFour: sub.cardLastFour,
+        customerPortalUrl: sub.customerPortalUrl,
+        updatePaymentMethodUrl: sub.updatePaymentMethodUrl,
+        live: true,
+      },
+    });
+  } catch (err) {
+    console.error('[billing/subscription]', err);
+    res.json({ subscription: stored });
   }
 });
 
@@ -69,8 +176,6 @@ interface LsWebhookPayload {
     };
   };
 }
-
-const DOWNGRADE_STATUSES = new Set(['cancelled', 'expired', 'paused', 'unpaid']);
 
 webhookRouter.post('/lemonsqueezy', async (req: Request, res: Response): Promise<void> => {
   const signature = req.headers['x-signature'] as string | undefined;
@@ -106,28 +211,14 @@ webhookRouter.post('/lemonsqueezy', async (req: Request, res: Response): Promise
     return;
   }
 
-  if (DOWNGRADE_STATUSES.has(status)) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { plan: Plan.FREE, lsStatus: status },
-    });
-  } else {
-    const mappedPlan = planForVariant(variantId);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        ...(mappedPlan ? { plan: mappedPlan as Plan } : {}),
-        // A real Lemon Squeezy subscription supersedes our own no-card
-        // registration trial — clear it so getEffectivePlan() reads `plan`.
-        trialPlan: null,
-        trialEndsAt: null,
-        lsCustomerId,
-        lsSubscriptionId,
-        lsVariantId: variantId,
-        lsStatus: status,
-      },
-    });
+  // A late event about an older, already-replaced subscription must not
+  // downgrade a user who has since subscribed again.
+  if (user.lsSubscriptionId && user.lsSubscriptionId !== lsSubscriptionId && DOWNGRADE_STATUSES.has(status)) {
+    res.json({ ok: true, ignored: true });
+    return;
   }
+
+  await applySubscriptionState(user.id, { id: lsSubscriptionId, customerId: lsCustomerId, variantId, status });
 
   res.json({ ok: true });
 });

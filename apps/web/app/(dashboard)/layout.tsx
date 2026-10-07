@@ -40,6 +40,8 @@ interface User {
   email: string;
   plan?: string;
   role?: string;
+  // Present only while the no-card registration trial is running.
+  trial?: { plan: string; endsAt: string } | null;
 }
 
 interface AppNotification {
@@ -199,6 +201,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetchUser();
   }, [fetchUser, router]);
 
+  // Settings → Plan & Billing fires this once a new subscription lands, so the
+  // sidebar plan badge updates without a reload.
+  useEffect(() => {
+    const onRefresh = () => { fetchUser(); };
+    window.addEventListener('adflow:refresh-user', onRefresh);
+    return () => window.removeEventListener('adflow:refresh-user', onRefresh);
+  }, [fetchUser]);
+
   const handleLogout = () => {
     clearAuth();
     router.push('/login');
@@ -213,6 +223,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // and every plan badge silently falls back to the Free color.
   const plan = (user?.plan || 'free').toLowerCase();
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const trialDaysLeft = user?.trial?.endsAt
+    ? Math.max(1, Math.ceil((new Date(user.trial.endsAt).getTime() - Date.now()) / 86400000))
+    : null;
 
   const SidebarContent = ({ isCollapsed }: { isCollapsed: boolean }) => (
     <>
@@ -279,15 +292,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
-      {/* Upgrade prompt if free */}
-      {plan === 'free' && !isCollapsed && (
+      {/* Upgrade prompt if free, or while the no-card trial runs */}
+      {(plan === 'free' || trialDaysLeft !== null) && !isCollapsed && (
         <div className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-[#6366f1]/10 to-[#8b5cf6]/10 border border-[#6366f1]/20 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-[#6366f1]" />
-            <p className="text-xs font-semibold text-[#0f172a]">Upgrade to Pro</p>
+            <p className="text-xs font-semibold text-[#0f172a]">
+              {trialDaysLeft !== null
+                ? `Pro trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`
+                : 'Upgrade to Pro'}
+            </p>
           </div>
           <p className="text-[10px] text-[#64748b] mb-2.5 leading-relaxed">
-            Unlock unlimited links, AI insights, and 1M clicks/month.
+            {trialDaysLeft !== null
+              ? 'Subscribe now to keep Pro features when your trial ends.'
+              : 'Unlock unlimited links, AI insights, and 1M clicks/month.'}
           </p>
           <button
             onClick={handleUpgrade}

@@ -12,6 +12,9 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  CreditCard,
+  ExternalLink,
+  CheckCircle2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -22,6 +25,48 @@ interface UserProfile {
   email: string;
   plan?: string;
   createdAt?: string;
+  trial?: { plan: string; endsAt: string } | null;
+}
+
+interface BillingSubscription {
+  status: string;
+  plan: 'PRO' | 'TEAM' | null;
+  renewsAt: string | null;
+  endsAt: string | null;
+  trialEndsAt: string | null;
+  cardBrand: string | null;
+  cardLastFour: string | null;
+  customerPortalUrl: string | null;
+  updatePaymentMethodUrl: string | null;
+  live: boolean;
+}
+
+type TabId = 'profile' | 'billing' | 'security' | 'api' | 'notifications';
+
+const PLAN_PRICES: Record<'PRO' | 'TEAM', string> = { PRO: '€49', TEAM: '€149' };
+
+// Mirrors OPEN_STATUSES in apps/api/src/routes/billing.ts: while one of these
+// is set the customer manages the existing subscription instead of buying a new one.
+const OPEN_SUB_STATUSES = new Set(['on_trial', 'active', 'past_due', 'cancelled', 'paused', 'unpaid']);
+
+const SUB_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  on_trial: { label: 'Trial', className: 'text-[#6366f1] bg-[#6366f1]/10 border-[#6366f1]/20' },
+  active: { label: 'Active', className: 'text-[#10b981] bg-[#10b981]/10 border-[#10b981]/20' },
+  cancelled: { label: 'Cancelled', className: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20' },
+  past_due: { label: 'Payment failed', className: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' },
+  unpaid: { label: 'Unpaid', className: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' },
+  paused: { label: 'Paused', className: 'text-[#64748b] bg-[#e2e8f0] border-[#e2e8f0]' },
+  expired: { label: 'Expired', className: 'text-[#64748b] bg-[#e2e8f0] border-[#e2e8f0]' },
+};
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function planName(plan: string | null | undefined): string {
+  const p = (plan || 'free').toLowerCase();
+  return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
 export default function SettingsPage() {
@@ -35,7 +80,73 @@ export default function SettingsPage() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'api' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
+  const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingLoaded, setBillingLoaded] = useState(false);
+  const [justUpgraded, setJustUpgraded] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<'PRO' | 'TEAM' | null>(null);
+
+  // Lemon Squeezy sends the buyer back to /settings?tab=billing&upgraded=1.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'billing') setActiveTab('billing');
+    if (params.get('upgraded') === '1') {
+      setJustUpgraded(true);
+      params.delete('upgraded');
+      const qs = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, []);
+
+  const loadBilling = async (): Promise<BillingSubscription | null> => {
+    setBillingLoading(true);
+    try {
+      const res = await api.get<{ subscription: BillingSubscription | null }>('/api/billing/subscription');
+      setSubscription(res.subscription);
+      return res.subscription;
+    } catch {
+      toast({ type: 'error', title: 'Failed to load billing details' });
+      return null;
+    } finally {
+      setBillingLoading(false);
+      setBillingLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'billing' || billingLoaded) return;
+    let cancelled = false;
+    (async () => {
+      let sub = await loadBilling();
+      // Right after checkout the webhook can land a few seconds after the
+      // redirect — poll briefly until the new subscription shows up.
+      for (let i = 0; justUpgraded && !sub && i < 8 && !cancelled; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        if (!cancelled) sub = await loadBilling();
+      }
+      if (sub && justUpgraded && !cancelled) {
+        try {
+          const me = await api.get<{ user: UserProfile }>('/api/auth/me');
+          setUser(me.user);
+        } catch { /* ignore */ }
+        window.dispatchEvent(new Event('adflow:refresh-user'));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, justUpgraded]);
+
+  const startCheckout = async (plan: 'PRO' | 'TEAM') => {
+    if (checkoutPlan) return;
+    setCheckoutPlan(plan);
+    try {
+      const res = await api.post<{ url: string }>('/api/billing/checkout', { plan });
+      window.location.href = res.url;
+    } catch (err: unknown) {
+      toast({ type: 'error', title: err instanceof Error ? err.message : 'Could not start checkout' });
+      setCheckoutPlan(null);
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -126,6 +237,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
+    { id: 'billing', label: 'Plan & Billing', icon: <CreditCard className="w-4 h-4" /> },
     { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
     { id: 'api', label: 'API Access', icon: <Key className="w-4 h-4" /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
@@ -218,6 +330,149 @@ export default function SettingsPage() {
           </form>
         </div>
       )}
+
+      {/* Plan & Billing Tab */}
+      {activeTab === 'billing' && (() => {
+        const hasOpenSub = !!subscription && OPEN_SUB_STATUSES.has(subscription.status);
+        const subPlan = subscription?.plan ?? null;
+        const price = subPlan ? PLAN_PRICES[subPlan] : null;
+        const statusMeta = subscription ? SUB_STATUS_LABELS[subscription.status] : undefined;
+        const trialDaysLeft = user?.trial?.endsAt
+          ? Math.max(1, Math.ceil((new Date(user.trial.endsAt).getTime() - Date.now()) / 86400000))
+          : null;
+
+        return (
+          <div className="space-y-4">
+            {justUpgraded && (
+              <div className="flex items-start gap-3 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-2xl">
+                {hasOpenSub
+                  ? <CheckCircle2 className="w-5 h-5 text-[#10b981] flex-shrink-0 mt-0.5" />
+                  : <Loader2 className="w-5 h-5 text-[#10b981] animate-spin flex-shrink-0 mt-0.5" />}
+                <div>
+                  <p className="text-sm font-semibold text-[#0f172a]">Thank you for subscribing!</p>
+                  <p className="text-xs text-[#64748b] mt-0.5">
+                    {hasOpenSub
+                      ? `Your ${planName(subPlan)} plan is active. A receipt is on its way to your inbox.`
+                      : 'We are activating your plan — this usually takes a few seconds.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-2xl p-6">
+              <h3 className="text-sm font-semibold text-[#0f172a] mb-5">Current Plan</h3>
+
+              {billingLoading && !billingLoaded ? (
+                <div className="h-20 skeleton rounded-xl" />
+              ) : (
+                <div className="p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-base font-bold text-[#0f172a]">
+                      {hasOpenSub ? planName(subPlan ?? user?.plan) : trialDaysLeft !== null ? `${planName(user?.trial?.plan)} trial` : planName(user?.plan)}
+                    </p>
+                    {hasOpenSub && statusMeta && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusMeta.className}`}>
+                        {statusMeta.label}
+                      </span>
+                    )}
+                    {hasOpenSub && price && <span className="text-xs text-[#94a3b8]">{price}/month</span>}
+                  </div>
+
+                  <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
+                    {!hasOpenSub && trialDaysLeft !== null &&
+                      `Your free trial ends on ${formatDate(user?.trial?.endsAt)} (${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left). Subscribe below to keep Pro features.`}
+                    {!hasOpenSub && trialDaysLeft === null && 'You are on the Free plan. Upgrade below to unlock more.'}
+                    {subscription?.status === 'on_trial' &&
+                      `Free trial until ${formatDate(subscription.trialEndsAt)}. After that you'll be billed ${price ?? ''}/month — cancel anytime before then and you won't be charged.`}
+                    {subscription?.status === 'active' && `Renews on ${formatDate(subscription.renewsAt)}.`}
+                    {subscription?.status === 'cancelled' &&
+                      `Cancelled — you keep ${planName(subPlan)} until ${formatDate(subscription.endsAt)}. You can resume anytime before then.`}
+                    {subscription?.status === 'past_due' &&
+                      `We couldn't charge your card. Please update your payment method to keep ${planName(subPlan)}.`}
+                    {subscription?.status === 'unpaid' && 'Your subscription is unpaid. Update your payment method to reactivate it.'}
+                    {subscription?.status === 'paused' && 'Your subscription is paused. Resume it to get your plan back.'}
+                  </p>
+
+                  {hasOpenSub && subscription?.cardLastFour && (
+                    <p className="text-xs text-[#94a3b8] mt-1.5 flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span className="capitalize">{subscription.cardBrand || 'Card'}</span> •••• {subscription.cardLastFour}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasOpenSub && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {subscription?.customerPortalUrl ? (
+                    <>
+                      <a
+                        href={subscription.customerPortalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 bg-[#6366f1] hover:bg-[#5558e3] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        {subscription.status === 'cancelled' || subscription.status === 'paused' ? 'Resume subscription' : 'Manage subscription'}
+                      </a>
+                      {subscription.updatePaymentMethodUrl && (
+                        <a
+                          href={subscription.updatePaymentMethodUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm font-medium text-[#64748b] hover:text-[#0f172a] border border-[#e2e8f0] px-4 py-2.5 rounded-xl transition-colors"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          Update payment method
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-[#94a3b8]">
+                      To manage your subscription, use the &quot;Manage subscription&quot; link in your Lemon Squeezy receipt email.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!hasOpenSub && billingLoaded && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([
+                  { id: 'PRO' as const, name: 'Pro', desc: 'Unlimited clicks & links, AI insights, conversion postbacks, bot detection, 1-year data retention.' },
+                  { id: 'TEAM' as const, name: 'Team', desc: 'Everything in Pro, plus multi-user access, white-label reports, API access and unlimited data retention.' },
+                ]).map((p) => (
+                  <div key={p.id} className={`bg-[#ffffff] border rounded-2xl p-5 flex flex-col ${p.id === 'PRO' ? 'border-[#6366f1]/40' : 'border-[#e2e8f0]'}`}>
+                    <p className="text-sm font-semibold text-[#0f172a]">{p.name}</p>
+                    <p className="mt-1">
+                      <span className="text-2xl font-bold text-[#0f172a]">{PLAN_PRICES[p.id]}</span>
+                      <span className="text-xs text-[#94a3b8]">/month</span>
+                    </p>
+                    <p className="text-xs text-[#64748b] mt-2 leading-relaxed flex-1">{p.desc}</p>
+                    <button
+                      onClick={() => startCheckout(p.id)}
+                      disabled={checkoutPlan !== null}
+                      className={`mt-4 flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-60 ${
+                        p.id === 'PRO'
+                          ? 'bg-[#6366f1] hover:bg-[#5558e3] text-white'
+                          : 'border border-[#e2e8f0] text-[#0f172a] hover:border-[#6366f1]/40'
+                      }`}
+                    >
+                      {checkoutPlan === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      {checkoutPlan === p.id ? 'Redirecting…' : `Subscribe to ${p.name}`}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[11px] text-[#94a3b8] leading-relaxed">
+              Payments are processed securely by Lemon Squeezy, our Merchant of Record. Billed monthly, cancel anytime.{' '}
+              <a href="/terms#refunds" className="text-[#6366f1] hover:underline">Refund policy</a>
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Security Tab */}
       {activeTab === 'security' && (
