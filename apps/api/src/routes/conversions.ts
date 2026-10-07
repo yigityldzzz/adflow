@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ConversionType } from '@prisma/client';
-import { sendMetaCapiEvent } from '../services/metaCapi';
+import { sendMetaCapiEvent, cleanHash } from '../services/metaCapi';
 import { sendTikTokEvent } from '../services/tiktokCapi';
 import { sendSnapEvent } from '../services/snapCapi';
 import { fireGenericPostback } from '../services/postback';
@@ -32,7 +32,15 @@ const postbackSchema = z.object({
   txid:      z.string().optional(),   // transaction ID for deduplication
 });
 
-async function fireMetaCapi(conversionId: string, clickId: string | null, linkId: string, value: number, currency: string, eventName: string, txid?: string | null): Promise<void> {
+// Extra matching data a browser-side pixel can pass along (hashed in the
+// visitor's browser; see /pixel/:token).
+interface CapiMatch {
+  emailHash?: string | null;
+  phoneHash?: string | null;
+  visitorId?: string | null;
+}
+
+async function fireMetaCapi(conversionId: string, clickId: string | null, linkId: string, value: number, currency: string, eventName: string, txid?: string | null, match?: CapiMatch): Promise<void> {
   const link = await prisma.trackingLink.findUnique({
     where: { id: linkId },
     include: { campaign: { include: { trafficSource: true } } },
@@ -60,7 +68,11 @@ async function fireMetaCapi(conversionId: string, clickId: string | null, linkId
     }
   }
 
-  if (!fbclid) return;
+  // Meta needs something to match the event to a person: the ad click id, or a
+  // hashed email/phone. Without either the event can't be attributed.
+  const emailHash = cleanHash(match?.emailHash);
+  const phoneHash = cleanHash(match?.phoneHash);
+  if (!fbclid && !emailHash && !phoneHash) return;
 
   // event_source_url: use destination URL of the tracking link (the offer/LP page)
   const eventSourceUrl = link.destinationUrl || refererUrl || undefined;
@@ -73,6 +85,7 @@ async function fireMetaCapi(conversionId: string, clickId: string | null, linkId
     eventTime: Math.floor(Date.now() / 1000),
     fbclid, clickTimestamp: clickTime, ip, userAgent, value, currency,
     eventSourceUrl: eventSourceUrl ?? undefined,
+    emailHash, phoneHash, externalId: match?.visitorId ?? null,
   });
 
   if (!result.success) console.error('[CAPI]', result.error, conversionId);
@@ -297,10 +310,69 @@ router.get('/pixel/:token', async (req: Request, res: Response): Promise<void> =
     const conversion = await prisma.conversion.create({
       data: { linkId: link.id, userId: link.userId, clickId, type: validType, value: isNaN(value) ? 0 : value, currency, txid },
     });
-    fireMetaCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
+    fireMetaCapi(conversion.id, clickId, link.id, value, currency, validType, txid, {
+      emailHash: req.query.em ? String(req.query.em) : null,
+      phoneHash: req.query.ph ? String(req.query.ph) : null,
+      visitorId: visitorId ?? null,
+    }).catch(() => {});
     fireTikTokCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
     fireSnapCapi(conversion.id, clickId, link.id, value, currency, validType, txid).catch(() => {});
     fireTrafficSourcePostback(conversion.id, clickId, link.id, value).catch(() => {});
+  } catch { /* pixel already sent */ }
+});
+
+// GET /api/conversions/engaged/:token?sub1=<visitorId> — public pixel.
+// The landing page calls this once when an ad visitor shows real interest
+// (stays and scrolls). It is NOT a conversion: nothing is added to the
+// Conversion table or to conversion counts. The click gets engagedAt, and
+// for Meta traffic a ViewContent event goes to the Conversions API, which
+// gives the ad algorithm far more "good visitor" signals than leads alone.
+router.get('/engaged/:token', async (req: Request, res: Response): Promise<void> => {
+  const rawToken = req.params.token.replace(/\.gif$/, '');
+  const visitorId = req.query.sub1 ? String(req.query.sub1) : null;
+
+  res.set({ 'Content-Type': 'image/gif', 'Cache-Control': 'no-cache, no-store, must-revalidate', Pragma: 'no-cache', Expires: '0' });
+  res.end(TRANSPARENT_GIF);
+
+  if (!visitorId) return;
+  try {
+    const link = await prisma.trackingLink.findUnique({
+      where: { conversionToken: rawToken },
+      include: { campaign: { include: { trafficSource: true } } },
+    });
+    if (!link) return;
+
+    const click = await prisma.click.findFirst({
+      where: { linkId: link.id, visitorId, isBot: false },
+      orderBy: { timestamp: 'desc' },
+    });
+    if (!click) return;
+
+    // Once per click: claim engagedAt atomically
+    const claimed = await prisma.click.updateMany({
+      where: { id: click.id, engagedAt: null },
+      data: { engagedAt: new Date() },
+    });
+    if (claimed.count !== 1) return;
+
+    const ts = link.campaign?.trafficSource;
+    if (!ts || ts.platform !== 'meta' || !ts.pixelId || !ts.accessToken || !click.fbclid) return;
+
+    const result = await sendMetaCapiEvent({
+      pixelId: ts.pixelId,
+      accessToken: ts.accessToken,
+      eventName: 'ViewContent',
+      eventId: `engaged_${click.id}`,
+      eventTime: Math.floor(Date.now() / 1000),
+      fbclid: click.fbclid,
+      clickTimestamp: click.timestamp,
+      ip: click.ip,
+      userAgent: click.userAgent,
+      eventSourceUrl: link.destinationUrl || undefined,
+      externalId: visitorId,
+    });
+    if (!result.success) console.error('[CAPI engaged]', result.error, click.id);
+    else console.log('[CAPI engaged] OK', click.id);
   } catch { /* pixel already sent */ }
 });
 

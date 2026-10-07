@@ -307,6 +307,9 @@ model Click {
   isBot          Boolean  @default(false)
   isSuspicious   Boolean  @default(false)
   isUnique       Boolean  @default(true)
+  // Set once when the visitor showed real interest on the landing page
+  // (stayed and scrolled); sent to the ad platform as ViewContent.
+  engagedAt      DateTime?
   timestamp      DateTime @default(now())
   link           TrackingLink  @relation(fields: [linkId], references: [id], onDelete: Cascade)
   campaign       Campaign?     @relation(fields: [campaignId], references: [id])

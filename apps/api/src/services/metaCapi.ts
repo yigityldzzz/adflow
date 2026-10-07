@@ -13,6 +13,24 @@ export interface CapiEventPayload {
   value?: number;
   currency?: string;
   eventSourceUrl?: string;
+  // Already SHA-256-hashed (normalized) email / phone, hashed in the visitor's
+  // browser — AdFlow never receives the plain values.
+  emailHash?: string | null;
+  phoneHash?: string | null;
+  // Our own visitor id (adflow_vid); hashed here and sent as external_id so
+  // Meta can tie a visitor's events (engaged visit, lead) to one person.
+  externalId?: string | null;
+  // Meta Events Manager "Test events" code — events show up there only.
+  testEventCode?: string;
+}
+
+const SHA256_HEX = /^[a-f0-9]{64}$/;
+
+// Accepts a pre-hashed value only (64 lowercase hex chars); anything else is dropped.
+export function cleanHash(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  return SHA256_HEX.test(v) ? v : null;
 }
 
 export interface CapiResult {
@@ -45,10 +63,14 @@ export async function sendMetaCapiEvent(payload: CapiEventPayload): Promise<Capi
     value,
     currency,
     eventSourceUrl,
+    emailHash,
+    phoneHash,
+    externalId,
+    testEventCode,
   } = payload;
 
   // Build user_data object
-  const userData: Record<string, string> = {};
+  const userData: Record<string, string | string[]> = {};
 
   if (fbclid) {
     userData['fbc'] = buildFbc(fbclid, clickTimestamp);
@@ -61,6 +83,13 @@ export async function sendMetaCapiEvent(payload: CapiEventPayload): Promise<Capi
   if (userAgent) {
     userData['client_user_agent'] = userAgent;
   }
+
+  // Hashed identifiers (Meta spec: arrays of SHA-256 hex strings)
+  const em = cleanHash(emailHash);
+  const ph = cleanHash(phoneHash);
+  if (em) userData['em'] = [em];
+  if (ph) userData['ph'] = [ph];
+  if (externalId) userData['external_id'] = [sha256(externalId)];
 
   // Build event object
   const eventObj: Record<string, unknown> = {
@@ -82,7 +111,7 @@ export async function sendMetaCapiEvent(payload: CapiEventPayload): Promise<Capi
     };
   }
 
-  const body = JSON.stringify({ data: [eventObj] });
+  const body = JSON.stringify({ data: [eventObj], ...(testEventCode ? { test_event_code: testEventCode } : {}) });
 
   const url = `https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${accessToken}`;
 
