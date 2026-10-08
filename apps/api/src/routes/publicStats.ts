@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { prisma } from '../config/database';
+import { detectBot } from '../services/botDetection';
 
 const router = Router();
 
@@ -31,6 +32,8 @@ router.get('/consent-stat', async (req: Request, res: Response): Promise<void> =
   const device = String(req.query.d ?? '');
   const path = String(req.query.p ?? '').toLowerCase().replace(/\.html$/, '');
   if (!EVENTS.has(event) || !SOURCES.has(source) || !DEVICES.has(device) || !PATH_RE.test(path) || !fromOurSite(req)) return;
+  // Search-engine and ad crawlers render the page too; they are not visitors.
+  if (detectBot(String(req.headers['user-agent'] ?? ''), '').isBot) return;
 
   try {
     await prisma.$executeRaw`

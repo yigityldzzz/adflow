@@ -34,6 +34,8 @@ const CRAWLER_PATTERNS = [
   /barkrowler/i,
   // "compatible; SomethingBot/1.0" — the form crawlers use to identify themselves
   /compatible;[^)]*\b[\w.-]*(bot|crawler|spider)\b/i,
+  // "(+https://example.com/…/crawler)" — a crawler linking to its own docs page
+  /\(\+https?:\/\/[^)]*(bot|crawler|spider)/i,
 ];
 
 export function detectBot(
@@ -53,6 +55,7 @@ export function detectBot(
     /facebookexternalhit/i,
     /facebookcatalog/i,
     /meta-externalagent/i,
+    /meta-externalads/i,
     /ia_archiver/i,
     /semrushbot/i,
     /ahrefsbot/i,
@@ -107,6 +110,7 @@ const AD_REVIEWER_PATTERNS = [
   /facebot/i,
   /facebookcatalog/i,
   /meta-externalagent/i,
+  /meta-externalads/i,
   /adsbot-google/i,
   /mediapartners-google/i,
   /google-adwords/i,
