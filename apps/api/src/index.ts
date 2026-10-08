@@ -24,6 +24,7 @@ import domainsRouter from './routes/domains';
 import adAccountsRouter from './routes/adAccounts';
 import redirectRouter from './tracking/redirect';
 import billingRouter, { webhookRouter } from './routes/billing';
+import publicStatsRouter from './routes/publicStats';
 import { checkAllAlerts } from './services/alertChecker';
 import { enforceDataRetention } from './services/retention';
 import { syncAllMetaAdAccounts } from './services/adAccountScheduler';
@@ -169,6 +170,7 @@ app.use('/api/organizations', generalLimiter, organizationsRouter);
 app.use('/api/domains', generalLimiter, domainsRouter);
 app.use('/api/ad-accounts', generalLimiter, adAccountsRouter);
 app.use('/api/billing', generalLimiter, billingRouter);
+app.use('/api/public', generalLimiter, publicStatsRouter);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

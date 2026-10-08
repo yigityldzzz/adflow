@@ -411,3 +411,18 @@ model Flow {
 
   @@index([userId])
 }
+
+// Anonymous daily counts of cookie-banner events on our own marketing site
+// (digitaladexpert.de): banner shown / accepted / declined, split by page,
+// traffic source and device. No visitor id, cookie or IP is stored.
+model ConsentStat {
+  id      String   @id @default(cuid())
+  day     DateTime @db.Date
+  path    String
+  event   String   // shown | granted | denied
+  source  String   // meta | google | other | none
+  device  String   // mobile | desktop
+  count   Int      @default(0)
+
+  @@unique([day, path, event, source, device])
+}
